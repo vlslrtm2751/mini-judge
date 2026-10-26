@@ -1,0 +1,11 @@
+{
+  "params": ["text", "count"],
+  "timeLimitMs": 1000,
+  "compare": "exact",
+  "public": [
+    { "input": ["ab", 3], "expected": "ababab" }
+  ],
+  "hidden": [
+    { "input": ["x", 5], "expected": "xxxxx" }
+  ]
+}

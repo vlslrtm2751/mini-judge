@@ -1,0 +1,17 @@
+:root {
+  --bg: #ffffff;
+  --fg: #111111;
+  --border: #d9d9df;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121319;
+    --fg: #f5f6ff;
+    --border: #393d4a;
+  }
+}
+[data-theme='dark'] {
+  --bg: #121319;
+  --fg: #f5f6ff;
+  --border: #393d4a;
+}

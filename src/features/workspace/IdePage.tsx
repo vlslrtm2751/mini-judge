@@ -10,7 +10,7 @@ import { ActionBar } from './ActionBar';
 import { MobileTabs } from './MobileTabs';
 import { ProblemPicker } from './ProblemPicker';
 import { useDraftStore } from '@/stores/draftStore';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styles from './workspace.module.css';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { useRunStore } from '@/stores/runStore';
@@ -30,8 +30,21 @@ export function IdePage() {
   const setDraft = useDraftStore((s) => s.setDraft);
   const resetDraft = useDraftStore((s) => s.reset);
   const [code, setCode] = useState(initialCode);
+  const [loadedProblemId, setLoadedProblemId] = useState(problem.meta.id);
+  const resetRunFor = useRunStore((s) => s.resetFor);
   const toggleCommentRef = useRef<() => void>(() => undefined);
   const { runTest, submit, stop } = useRun(problem);
+
+  // react-router reuses this component across /problems/:id changes, so
+  // per-problem state has to be rebuilt explicitly rather than on mount.
+  if (loadedProblemId !== problem.meta.id) {
+    setLoadedProblemId(problem.meta.id);
+    setCode(initialCode);
+  }
+
+  useEffect(() => {
+    resetRunFor(problem.meta.id);
+  }, [problem.meta.id, resetRunFor]);
 
   const onRunTest = () => {
     setDraft(problem.meta.id, code, problem.starter);

@@ -1,3 +1,4 @@
+import { toggleComment } from '@codemirror/commands';
 import { javascript } from '@codemirror/lang-javascript';
 import { linter } from '@codemirror/lint';
 import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror';
@@ -41,9 +42,8 @@ export function CodeEditor({
       extensions={[javascript(), syntaxLinter]}
       onCreateEditor={(editor) => {
         onToggleComment(() => {
-          editor.dispatch({
-            effects: [],
-          });
+          toggleComment(editor);
+          editor.focus();
         });
       }}
     />

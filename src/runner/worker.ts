@@ -1,23 +1,29 @@
 import type { RunCaseMessage, WorkerMessage } from './protocol';
+import type { Json } from '@/domain/types';
 import { compare } from './compare';
 import { show } from './show';
 import { serializeError } from './serializeError';
 import { inspectValue } from './inspect';
+import { loadSolution } from './sandbox';
 
 const MAX_LOGS = 300;
 
 self.onmessage = ({ data }: MessageEvent<RunCaseMessage>) => {
-  const logs: number[] = [];
   const send = (message: WorkerMessage) => self.postMessage(message);
 
-  const wrap = (level: 'log' | 'warn' | 'error') =>
+  let logCount = 0;
+  let limitAnnounced = false;
+
+  const wrap =
+    (level: 'log' | 'warn' | 'error') =>
     (...args: unknown[]) => {
-      if (logs.length > MAX_LOGS) return;
-      logs.push(1);
-      if (logs.length === MAX_LOGS) {
+      if (limitAnnounced) return;
+      if (logCount >= MAX_LOGS) {
+        limitAnnounced = true;
         send({ type: 'log', entry: { level: 'meta', text: '[log limit exceeded]' } });
         return;
       }
+      logCount += 1;
       send({ type: 'log', entry: { level, text: args.map((arg) => inspectValue(arg)).join(' ') } });
     };
 
@@ -33,28 +39,23 @@ self.onmessage = ({ data }: MessageEvent<RunCaseMessage>) => {
   } as Console;
 
   try {
-    const fn = (0, eval)(
-      `(() => { const console = globalThis.__console__; ${data.code}; return (typeof solution === "function" ? solution : undefined); })()
-//# sourceURL=solution.js`,
-    );
+    const fn = loadSolution(data.code, fakeConsole);
 
     if (typeof fn !== 'function') {
       send({ type: 'load-failed', reason: 'no-solution' });
       return;
     }
 
+    const solution = fn as (...args: Json[]) => unknown;
     send({ type: 'start' });
     const startedAt = performance.now();
 
     Promise.resolve()
-      .then(() => {
-        (globalThis as unknown as { __console__: Console }).__console__ = fakeConsole;
-        return fn(...data.input);
-      })
+      .then(() => solution(...data.input))
       .then((actual) => {
         const timeMs = performance.now() - startedAt;
-        const status = compare(data.compare, actual, data.expected) ? 'pass' : 'fail';
-        send({ type: 'done', status, actual: show(actual), timeMs });
+        const status = compare(data.compare, actual as Json, data.expected) ? 'pass' : 'fail';
+        send({ type: 'done', status, actual: show(actual as Json), timeMs });
       })
       .catch((error) => {
         const timeMs = performance.now() - startedAt;

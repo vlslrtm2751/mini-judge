@@ -8,6 +8,7 @@ export class LocalJudge implements Judge {
       ...(req.kind === 'submit' ? req.problem.suite.hidden.map((test) => ({ ...test, hidden: true })) : []),
     ];
 
+    const startedAt = Date.now();
     const results: CaseResult[] = [];
     let fatal: RunReport['fatal'];
 
@@ -19,7 +20,7 @@ export class LocalJudge implements Judge {
           results,
           passed: results.filter((r) => r.status === 'pass').length,
           total: cases.length,
-          startedAt: Date.now(),
+          startedAt,
           cancelled: true,
         };
       }
@@ -58,8 +59,9 @@ export class LocalJudge implements Judge {
       fatal,
       passed,
       total,
-      startedAt: Date.now(),
-      score: req.kind === 'submit' && !fatal ? Math.round((passed / total) * 1000) / 10 : undefined,
+      startedAt,
+      score:
+        req.kind === 'submit' && !fatal ? (total === 0 ? 0 : Math.round((passed / total) * 1000) / 10) : undefined,
       cancelled: req.signal.aborted,
     };
   }

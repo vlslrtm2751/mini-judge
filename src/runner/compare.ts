@@ -7,6 +7,8 @@ function deepEqual(a: Json, b: Json): boolean {
   }
   if (a === b) return true;
   if (!a || !b) return false;
+  // An array and an array-shaped object share the same keys; they are not equal.
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) return false;
     return a.every((v, i) => deepEqual(v as Json, b[i] as Json));
@@ -22,6 +24,7 @@ function deepEqual(a: Json, b: Json): boolean {
 
 function withFloat(a: Json, b: Json, eps: number): boolean {
   if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) <= eps;
+  if (a && b && Array.isArray(a) !== Array.isArray(b)) return false;
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) return false;
     return a.every((v, i) => withFloat(v as Json, b[i] as Json, eps));
@@ -47,6 +50,10 @@ export function compare(mode: CompareMode, actual: Json, expected: Json): boolea
   if (mode === 'exact') return deepEqual(actual, expected);
   if (mode === 'unordered') return unordered(actual, expected);
   if (mode === 'float') return withFloat(actual, expected, 1e-9);
-  if (mode.startsWith('float:')) return withFloat(actual, expected, Number(mode.slice(6)) || 1e-9);
+  if (mode.startsWith('float:')) {
+    // An explicit `float:0` means exact — only an unparseable epsilon falls back.
+    const eps = Number(mode.slice(6));
+    return withFloat(actual, expected, Number.isFinite(eps) ? eps : 1e-9);
+  }
   return deepEqual(actual, expected);
 }

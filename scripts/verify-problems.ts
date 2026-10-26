@@ -2,6 +2,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { metaSchema, suiteSchema } from '../src/domain/schema';
+import { verifySuite } from './verifySuite';
 
 const root = path.resolve(process.cwd(), 'problems');
 
@@ -21,24 +22,15 @@ async function main() {
     }
 
     const referencePath = path.join(problemDir, 'reference.js');
-    try {
+    await verifySuite(dir.name, suite, async () => {
       const mod = await import(pathToFileURL(referencePath).toString());
-      const solution = mod.default ?? mod.solution;
-      if (typeof solution === 'function') {
-        for (const tc of [...suite.public, ...suite.hidden]) {
-          const actual = await solution(...tc.input);
-          const expectJson = JSON.stringify(tc.expected);
-          const actualJson = JSON.stringify(actual);
-          if (expectJson !== actualJson) {
-            throw new Error(`${dir.name}: reference mismatch`);
-          }
-        }
-      }
-    } catch {
-      // optional reference
-    }
+      return mod.default ?? mod.solution;
+    });
   }
   console.log('verify:problems ok');
 }
 
-void main();
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

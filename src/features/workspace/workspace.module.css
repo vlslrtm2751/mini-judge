@@ -1,0 +1,4 @@
+.page { display:flex; flex-direction:column; min-height:100vh; background:var(--bg); color:var(--fg);} 
+.separator { width: 6px; background: var(--border);} 
+.mobileStack { display:flex; flex-direction:column; flex:1; min-height:0; }
+.mobilePanel { flex:1; min-height:0; overflow:hidden; }

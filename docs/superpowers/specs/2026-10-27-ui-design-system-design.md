@@ -20,6 +20,9 @@
 파서)은 가져오지 않는다. 그쪽은 이 저장소의 것이 이미 더 낫다.
 
 다크 전용으로 간다. 라이트 테마와 `prefers-color-scheme` 분기는 제거한다.
+이에 딸린 기계장치도 함께 걷어낸다 — `uiStore`의 `theme` 상태와 `setTheme`
+(호출처가 없다), `AppShell`이 `<html>`에 `data-theme`을 심는 효과, 그리고
+`tokens.css`의 `[data-theme='dark']` 블록이 전부 의미를 잃는다.
 
 ## 성공 기준
 
@@ -240,6 +243,8 @@ timeout `--warn`/`--warn-wash`, running `--accent`/`--accent-wash`.
 |---|---|
 | `src/styles/tokens.css` | 전면 교체 |
 | `src/styles/global.css` | 다크 전용, 폰트 역할, 포커스 링, reduced-motion |
+| `src/app/AppShell.tsx` | `data-theme` 설정 효과 제거 |
+| `src/stores/uiStore.ts` | `theme` / `setTheme` / `partialize` 제거 |
 | `src/features/workspace/workspace.module.css` | 앱 셸, 패널 카드, 스플리터 그립 |
 | `src/features/workspace/IdePage.tsx` | 패널에 `.pane` 적용 |
 | `src/features/workspace/ProblemPicker.tsx` | 브랜드 + 커스텀 select |

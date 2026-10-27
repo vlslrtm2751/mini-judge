@@ -84,14 +84,14 @@ export function IdePage() {
           </section>
         </div>
       ) : (
-        <Group {...({ direction: 'horizontal', id: 'layout-main' } as Record<string, unknown>)}>
-          <Panel defaultSize={42} minSize={25} maxSize={65}>
+        <Group orientation="horizontal" id="layout-main" className={styles.layoutMain}>
+          <Panel defaultSize="42" minSize="25" maxSize="65">
             <ProblemPanel problem={problem} />
           </Panel>
-          <Separator className={styles.separator} />
+          <Separator className={styles.separatorV} />
           <Panel>
-            <Group {...({ direction: 'vertical', id: 'layout-right' } as Record<string, unknown>)}>
-              <Panel defaultSize={60}>
+            <Group orientation="vertical" id="layout-right" className={styles.layoutRight}>
+              <Panel defaultSize="60">
                 <EditorPanel
                   problem={problem}
                   code={code}
@@ -101,8 +101,8 @@ export function IdePage() {
                   }}
                 />
               </Panel>
-              <Separator className={styles.separator} />
-              <Panel defaultSize={40}>
+              <Separator className={styles.separatorH} />
+              <Panel defaultSize="40">
                 <OutputPanel />
               </Panel>
             </Group>

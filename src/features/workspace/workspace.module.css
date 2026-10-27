@@ -1,4 +1,51 @@
-.page { display:flex; flex-direction:column; min-height:100vh; background:var(--bg); color:var(--fg);} 
-.separator { width: 6px; background: var(--border);} 
-.mobileStack { display:flex; flex-direction:column; flex:1; min-height:0; }
-.mobilePanel { flex:1; min-height:0; overflow:hidden; }
+/* height, not min-height: the workspace fills the viewport exactly so the
+   resizable groups have a definite height to divide and only inner panels
+   scroll. With min-height the ActionBar was pushed off-screen. */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* Fills the space between the header and the ActionBar. min-height:0 lets it
+   shrink below its content's intrinsic height instead of overflowing. */
+.layoutMain {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Nested inside a Panel, which is not a flex container, so it takes height
+   from its parent rather than a flex basis. */
+.layoutRight {
+  height: 100%;
+  min-height: 0;
+}
+
+/* Separators are sized across the group's axis; the library owns flex-grow
+   and flex-shrink, so only the cross-axis dimension is set here. */
+.separatorV {
+  width: 6px;
+  background: var(--border);
+}
+
+.separatorH {
+  height: 6px;
+  background: var(--border);
+}
+
+.mobileStack {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.mobilePanel {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}

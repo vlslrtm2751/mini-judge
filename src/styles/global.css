@@ -46,6 +46,16 @@ textarea {
   outline-offset: 2px;
 }
 
+/* 화면에는 숨기되 스크린리더에는 읽히는 레이블 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -48,6 +48,21 @@ test('the page itself does not scroll', async ({ page }) => {
   expect(overflow.scroll).toBeLessThanOrEqual(overflow.client + 1);
 });
 
+test('좁은 화면에서 상단바와 액션바가 가로로 넘치지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.locator('select').waitFor();
+
+  const doc = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }));
+  expect(doc.scroll).toBeLessThanOrEqual(doc.client + 1);
+
+  // 제출 버튼이 화면 안에 온전히 들어와야 누를 수 있다.
+  await expect(page.getByRole('button', { name: '제출' })).toBeInViewport({ ratio: 1 });
+});
+
 test('action bar is reachable without scrolling', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: '테스트 실행' })).toBeInViewport();

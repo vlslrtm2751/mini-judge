@@ -1,19 +1,23 @@
 import { useUiStore } from '@/stores/uiStore';
+import styles from './chrome.module.css';
+
+const TABS = [
+  { view: 'problem', label: '문제' },
+  { view: 'code', label: '코드' },
+  { view: 'result', label: '결과' },
+] as const;
 
 export function MobileTabs() {
   const tab = useUiStore((s) => s.mobileView);
   const setTab = useUiStore((s) => s.setMobileView);
+
   return (
-    <nav style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
-      <button onClick={() => setTab('problem')} data-active={tab === 'problem'}>
-        문제
-      </button>
-      <button onClick={() => setTab('code')} data-active={tab === 'code'}>
-        코드
-      </button>
-      <button onClick={() => setTab('result')} data-active={tab === 'result'}>
-        결과
-      </button>
+    <nav className={styles.mobileTabs} aria-label="화면 전환">
+      {TABS.map(({ view, label }) => (
+        <button key={view} type="button" aria-pressed={tab === view} onClick={() => setTab(view)}>
+          {label}
+        </button>
+      ))}
     </nav>
   );
 }

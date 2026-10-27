@@ -72,3 +72,21 @@ test('에디터의 모든 구문 토큰이 배경과 구분된다', async ({ pag
   const tooClose = result.tokens.filter((t) => t.dist < 120);
   expect(tooClose, `배경에 묻히는 토큰: ${JSON.stringify(tooClose)}`).toEqual([]);
 });
+
+test('Tab으로 이동하면 포커스 링이 보인다', async ({ page }) => {
+  await page.goto('/');
+  // 앱이 렌더되기 전에 Tab을 누르면 포커스할 대상이 없어 body에 머문다.
+  await page.locator('select').waitFor();
+  await page.keyboard.press('Tab');
+
+  const outline = await page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el || el === document.body) return null;
+    const s = getComputedStyle(el);
+    return { width: s.outlineWidth, style: s.outlineStyle, tag: el.tagName };
+  });
+
+  expect(outline).not.toBeNull();
+  expect(outline!.style).not.toBe('none');
+  expect(parseFloat(outline!.width)).toBeGreaterThanOrEqual(2);
+});

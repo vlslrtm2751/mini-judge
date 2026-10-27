@@ -68,11 +68,10 @@ export function IdePage() {
       {isPhone ? (
         <div className={styles.mobileStack}>
           <MobileTabs />
-          <section className={styles.mobilePanel}>
+          <section className={`${styles.mobilePanel} ${styles.pane}`}>
             {mobileView === 'problem' ? <ProblemPanel problem={problem} /> : null}
             {mobileView === 'code' ? (
               <EditorPanel
-                problem={problem}
                 code={code}
                 onCode={setCode}
                 onToggleComment={(fn) => {
@@ -93,7 +92,6 @@ export function IdePage() {
             <Group orientation="vertical" id="layout-right" className={styles.layoutRight}>
               <Panel className={styles.pane} defaultSize="60">
                 <EditorPanel
-                  problem={problem}
                   code={code}
                   onCode={setCode}
                   onToggleComment={(fn) => {

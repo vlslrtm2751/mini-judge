@@ -29,7 +29,7 @@
 2. **줄바꿈 없는 아주 긴 터미널 한 줄** — `console.log('x'.repeat(5000))`이 `white-space: pre`인 `<pre>`를 통해 출력 패널 폭을 밀어내면 안 된다. 컨테이너가 가로 스크롤해야 한다. → Task 6에서 테스트.
 3. **pass 이외의 상태** — 마크와 칩을 pass만 보고 끝내기 쉽다. fail·error·timeout·running·pending 다섯 상태가 모두 서로 구분되는 색과 모양으로 렌더되어야 한다. → Task 6에서 테스트.
 4. **키보드 포커스 가시성** — Tab으로 이동할 때 모든 인터랙티브 요소(선택기, 탭, 버튼, 스플리터)에 `focus-visible` 링이 보여야 한다. 마우스로만 확인하면 놓친다. → Task 7에서 테스트.
-5. **제출 시 10개 케이스의 세로 스크롤** — 결과 목록이 출력 패널 높이를 넘으면 패널 안에서 스크롤해야 하고, 페이지 전체가 스크롤되면 안 된다. → Task 6에서 테스트.
+5. **제출 시 결과 목록의 세로 스크롤** — 001 문제는 공개 3 + 숨김 3이라 제출하면 케이스 6개가 쌓인다. 결과 목록이 출력 패널 높이를 넘으면 패널 안에서 스크롤해야 하고, 페이지 전체가 스크롤되면 안 된다. → Task 6에서 테스트.
 
 ---
 
@@ -264,6 +264,7 @@ git commit -m "feat(ui): 다크 전용 토큰 레이어 도입"
 
 **Files:**
 - Create: `src/ui/Button.tsx`, `src/ui/Button.module.css`
+- Modify: `vitest.config.ts`
 - Test: `tests/unit/button.test.tsx` (신규)
 
 **Interfaces:**
@@ -277,17 +278,34 @@ git commit -m "feat(ui): 다크 전용 토큰 레이어 도입"
   ```
   `variant` 기본값은 `'default'`. 나머지 props는 `<button>`에 그대로 전달된다. Task 6·7이 쓴다.
 
-- [ ] **Step 1: 실패 테스트 작성**
+- [ ] **Step 1: vitest가 `.tsx` 테스트를 집도록 설정 수정**
 
-`vitest` 환경이 jsdom이므로 렌더 테스트가 가능하다. `@testing-library/react`는 설치돼 있지 않으므로 `react-dom/client`로 직접 렌더한다(새 의존성 금지).
+현재 `vitest.config.ts`의 include는 `tests/unit/**/*.test.ts`라 `.tsx`를 매칭하지 않는다. 이대로 두면 이 태스크의 테스트가 **조용히 0개 실행되고 통과한 것처럼 보인다.** 먼저 고친다.
+
+```ts
+include: ['tests/unit/**/*.test.{ts,tsx}'],
+```
+
+확인:
+```
+npm run test
+```
+기대: 기존 22개가 그대로 통과(아직 .tsx 파일이 없으므로 변화 없음).
+
+- [ ] **Step 2: 실패 테스트 작성**
+
+`vitest` 환경이 jsdom이므로 렌더 테스트가 가능하다. `@testing-library/react`는 설치돼 있지 않으므로 `react-dom/client`로 직접 렌더한다(새 의존성 금지). React 19의 `act`는 `react`에서 직접 내보내지만, `IS_REACT_ACT_ENVIRONMENT`를 켜지 않으면 경고와 함께 동작이 달라진다.
 
 ```tsx
 import { describe, expect, it } from 'vitest';
-import { createRoot } from 'react-dom/client';
+import type { ReactElement } from 'react';
 import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { Button } from '@/ui/Button';
 
-function render(node: React.ReactElement): HTMLElement {
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+function render(node: ReactElement): HTMLElement {
   const host = document.createElement('div');
   document.body.appendChild(host);
   act(() => { createRoot(host).render(node); });
@@ -314,15 +332,15 @@ describe('Button', () => {
 });
 ```
 
-- [ ] **Step 2: 실패 확인**
+- [ ] **Step 3: 실패 확인**
 
 ```
 npm run test -- button
 ```
 
-기대: FAIL — `@/ui/Button`을 찾을 수 없음.
+기대: FAIL — `@/ui/Button`을 찾을 수 없음. **"No test files found"가 뜨면 Step 1이 반영되지 않은 것이다** — include 패턴을 다시 확인한다.
 
-- [ ] **Step 3: `Button.module.css` 작성**
+- [ ] **Step 4: `Button.module.css` 작성**
 
 ```css
 .btn {
@@ -361,7 +379,7 @@ npm run test -- button
 .ghost:hover:not(:disabled) { color: var(--ink); }
 ```
 
-- [ ] **Step 4: `Button.tsx` 작성**
+- [ ] **Step 5: `Button.tsx` 작성**
 
 ```tsx
 import type { ButtonHTMLAttributes, ReactElement } from 'react';
@@ -381,18 +399,18 @@ export function Button({
 
 Step 3의 `.default { }` 빈 규칙이 있어야 `styles.default`가 해시된 클래스 이름을 돌려주고 테스트의 `/default/` 매칭이 성립한다. CSS Modules는 선언이 비어 있어도 클래스를 생성한다.
 
-- [ ] **Step 5: 통과 확인**
+- [ ] **Step 6: 통과 확인**
 
 ```
-npm run test -- button && npm run typecheck
+npm run test && npm run typecheck
 ```
 
-기대: 3개 통과.
+기대: 25개 통과(기존 22 + 신규 3). 숫자가 22면 `.tsx`가 안 잡힌 것이다.
 
-- [ ] **Step 6: 커밋**
+- [ ] **Step 7: 커밋**
 
 ```bash
-git add src/ui/Button.tsx src/ui/Button.module.css tests/unit/button.test.tsx
+git add vitest.config.ts src/ui/Button.tsx src/ui/Button.module.css tests/unit/button.test.tsx
 git commit -m "feat(ui): 버튼 프리미티브 추가"
 ```
 
@@ -416,9 +434,13 @@ git commit -m "feat(ui): 버튼 프리미티브 추가"
 ```ts
 test('패널이 카드로 렌더된다', async ({ page }) => {
   await page.goto('/');
-  const pane = page.locator('[data-panel]').first();
-  const style = await pane.evaluate((el) => {
-    const s = getComputedStyle(el.firstElementChild ?? el);
+  // CSS Modules가 클래스 이름을 해시하므로 부분 일치로 찾는다. Panel의
+  // className은 중첩된 div에 적용되므로 [data-panel] 자신이 아닐 수 있다.
+  const card = page.locator('[class*="pane"]').first();
+  await card.waitFor();
+
+  const style = await card.evaluate((el) => {
+    const s = getComputedStyle(el);
     return { radius: s.borderTopLeftRadius, bg: s.backgroundColor };
   });
   expect(style.radius).toBe('10px');
@@ -1146,7 +1168,15 @@ Task 1에서 전역 `:focus-visible`을 넣었으므로 통과할 수도 있다.
 
 `MobileTabs.tsx`: `aria-selected`와 `role="tab"`을 붙이고 `styles.mobileTabs` 적용.
 
-`EditorPanel.tsx`: 헤더를 `styles.editorBar` + `styles.fileTab`(`solution.js`)로, 하단의 `problem.meta.id` 줄은 제거한다(목업에 없고 공간만 차지한다).
+`EditorPanel.tsx`: 헤더를 `styles.editorBar` + `styles.fileTab`(`solution.js`)로 바꾸고, 하단의 `problem.meta.id` 줄은 제거한다(목업에 없고 공간만 차지한다).
+
+**이 제거는 연쇄를 일으킨다.** `problem`을 쓰는 유일한 자리가 그 줄이라, 지우면 prop이 미사용이 되고 `tsconfig.app.json`의 `noUnusedParameters: true` 때문에 타입체크가 실패한다. 따라서 함께 해야 한다:
+
+1. `EditorPanel`의 props 타입과 구조분해에서 `problem`을 뺀다 → `{ code, onCode, onToggleComment }`
+2. `import type { Problem }`도 쓰이지 않으므로 지운다
+3. `IdePage.tsx`의 **두 호출처**(모바일 분기 60~68행, 데스크톱 분기 82~89행) 모두에서 `problem={problem}`을 뺀다
+
+`npm run typecheck`로 셋 다 반영됐는지 확인한다. 한 곳이라도 빠지면 바로 잡힌다.
 
 `LintStatus.tsx`: `data-state`를 내보내 점 색이 바뀌게 한다.
 

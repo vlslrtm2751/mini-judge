@@ -10,7 +10,10 @@
   /* 텍스트 */
   --ink: #e5eaf1;
   --ink-2: #a8b3c2;
-  --ink-3: #6e7b8d;
+  /* 목업의 #6e7b8d는 --sheet 위에서 3.99:1로 WCAG AA(4.5:1)에 미달한다.
+     줄번호·소요 시간·힌트처럼 실제로 읽어야 하는 보조 텍스트에 쓰이므로
+     4.63:1이 되도록 한 단계 밝혔다. */
+  --ink-3: #78869a;
 
   /* 경계 */
   --rule: #28323f;
@@ -60,10 +63,4 @@
   --f-title: 'Noto Serif KR', Georgia, serif;
   --f-code: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
   --f-pen: 'Nanum Pen Script', cursive;
-
-  /* 과도기 별칭. 아직 var(--border) 등을 쓰는 컴포넌트가 남아 있어 한꺼번에
-     지우면 중간 커밋의 테두리가 깨진다. 각 패널을 옮긴 뒤 마지막에 제거한다. */
-  --bg: var(--paper);
-  --fg: var(--ink);
-  --border: var(--rule);
 }

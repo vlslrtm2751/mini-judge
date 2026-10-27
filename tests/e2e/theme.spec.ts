@@ -73,6 +73,33 @@ test('에디터의 모든 구문 토큰이 배경과 구분된다', async ({ pag
   expect(tooClose, `배경에 묻히는 토큰: ${JSON.stringify(tooClose)}`).toEqual([]);
 });
 
+test('보조 텍스트가 패널 위에서 WCAG AA 대비를 넘는다', async ({ page }) => {
+  await page.goto('/');
+
+  const ratio = await page.evaluate(() => {
+    const s = getComputedStyle(document.documentElement);
+    const hex = (name: string) => {
+      const v = s.getPropertyValue(name).trim().replace('#', '');
+      return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16));
+    };
+    const lum = (rgb: number[]) => {
+      const [r, g, b] = rgb.map((v) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const a = lum(hex('--ink-3'));
+    const b = lum(hex('--sheet'));
+    const [hi, lo] = a > b ? [a, b] : [b, a];
+    return (hi + 0.05) / (lo + 0.05);
+  });
+
+  // 본문 텍스트 기준 4.5:1. --ink-3는 줄번호·소요 시간·힌트 등 읽어야 하는
+  // 보조 텍스트에 쓰인다.
+  expect(ratio).toBeGreaterThanOrEqual(4.5);
+});
+
 test('Tab으로 이동하면 포커스 링이 보인다', async ({ page }) => {
   await page.goto('/');
   // 앱이 렌더되기 전에 Tab을 누르면 포커스할 대상이 없어 body에 머문다.

@@ -85,13 +85,13 @@ export function IdePage() {
         </div>
       ) : (
         <Group orientation="horizontal" id="layout-main" className={styles.layoutMain}>
-          <Panel defaultSize="42" minSize="25" maxSize="65">
+          <Panel className={styles.pane} defaultSize="42" minSize="25" maxSize="65">
             <ProblemPanel problem={problem} />
           </Panel>
           <Separator className={styles.separatorV} />
           <Panel>
             <Group orientation="vertical" id="layout-right" className={styles.layoutRight}>
-              <Panel defaultSize="60">
+              <Panel className={styles.pane} defaultSize="60">
                 <EditorPanel
                   problem={problem}
                   code={code}
@@ -102,7 +102,7 @@ export function IdePage() {
                 />
               </Panel>
               <Separator className={styles.separatorH} />
-              <Panel defaultSize="40">
+              <Panel className={styles.pane} defaultSize="40">
                 <OutputPanel />
               </Panel>
             </Group>

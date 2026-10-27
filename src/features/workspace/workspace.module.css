@@ -4,11 +4,15 @@
 .page {
   display: flex;
   flex-direction: column;
+  gap: 10px;
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  background: var(--bg);
-  color: var(--fg);
+  padding-block: 10px 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--paper);
+  color: var(--ink);
 }
 
 /* Fills the space between the header and the ActionBar. min-height:0 lets it
@@ -25,16 +29,63 @@
   min-height: 0;
 }
 
-/* Separators are sized across the group's axis; the library owns flex-grow
-   and flex-shrink, so only the cross-axis dimension is set here. */
+/* Each resizable region is a card. overflow:hidden keeps the rounded corners
+   clipping their contents; the inner panel owns its own scrolling. */
+.pane {
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  overflow: hidden;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+}
+
+/* Separators are transparent hit areas with a visible grip in the middle.
+   The library owns flex-grow/flex-shrink, so only the cross-axis size is set. */
+.separatorV,
+.separatorH {
+  position: relative;
+  background: transparent;
+}
+
 .separatorV {
-  width: 6px;
-  background: var(--border);
+  width: 10px;
+  cursor: col-resize;
 }
 
 .separatorH {
-  height: 6px;
-  background: var(--border);
+  height: 10px;
+  cursor: row-resize;
+}
+
+.separatorV::before,
+.separatorH::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 2px;
+  background: var(--rule-strong);
+  transition: background-color 0.15s;
+}
+
+.separatorV::before {
+  width: 3px;
+  height: 40px;
+}
+
+.separatorH::before {
+  width: 40px;
+  height: 3px;
+}
+
+.separatorV:hover::before,
+.separatorH:hover::before,
+.separatorV:focus-visible::before,
+.separatorH:focus-visible::before {
+  background: var(--accent);
 }
 
 .mobileStack {
@@ -42,6 +93,7 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  gap: 10px;
 }
 
 .mobilePanel {

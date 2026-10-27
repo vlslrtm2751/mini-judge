@@ -20,3 +20,18 @@ test('디자인 토큰이 다크 값으로 정의돼 있다', async ({ page }) =
   });
   expect(tokens).toEqual({ sheet: '#151c25', ink: '#e5eaf1', accent: '#7096ff', codeBg: '#121820' });
 });
+
+test('패널이 카드로 렌더된다', async ({ page }) => {
+  await page.goto('/');
+  // CSS Modules가 클래스 이름을 해시하므로 부분 일치로 찾는다. Panel의
+  // className은 중첩된 div에 적용되므로 [data-panel] 자신이 아닐 수 있다.
+  const card = page.locator('[class*="pane"]').first();
+  await card.waitFor();
+
+  const style = await card.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { radius: s.borderTopLeftRadius, bg: s.backgroundColor };
+  });
+  expect(style.radius).toBe('10px');
+  expect(style.bg).toBe('rgb(21, 28, 37)'); // --sheet
+});

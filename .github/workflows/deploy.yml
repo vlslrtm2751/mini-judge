@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Lets a redeploy start a fresh run. Re-running an existing run instead makes
+  # upload-pages-artifact add a second "github-pages" artifact to it, and
+  # deploy-pages then refuses the ambiguous run.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -31,6 +35,11 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs: verify
     runs-on: ubuntu-latest
+    # Scoped to this job, not the workflow: a workflow-level group would also
+    # queue every pull request's verify run behind the current deploy.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

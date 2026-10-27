@@ -158,7 +158,24 @@ Grid 스플리터를 쓰지만 그쪽으로 갈아탈 이유가 없다. `Separat
 직접 걸려 있다. 이 저장소는 `@uiw/react-codemirror`를 통한 CodeMirror **6**이고,
 테마 API가 다르다. 색값은 가져오되 구현은 새로 쓴다.
 
-`src/editor/theme.ts`를 만들어 두 가지를 내보낸다.
+**필요한 의존성 승격.** `@uiw/react-codemirror`는 `@codemirror/view`와
+`@codemirror/state`를 재노출하므로 `EditorView`는 그대로 쓸 수 있다. 그러나
+`HighlightStyle` / `syntaxHighlighting`(`@codemirror/language`)과
+`tags`(`@lezer/highlight`)는 재노출하지 않는다. 둘 다 transitive로는 설치돼
+있으므로, 커밋 `16185e7`에서 `@codemirror/commands`에 했던 것과 같이
+`package.json`과 `package-lock.json`의 루트 `dependencies` 양쪽에 추가한다.
+한쪽만 고치면 CI의 `npm ci`가 락 불일치로 실패한다.
+
+- `@codemirror/language` `^6.13.1`
+- `@lezer/highlight` `^1.2.5`
+
+**기본 하이라이트와의 충돌.** `@uiw/react-codemirror`는 `basicSetup`을 기본
+활성화하고, 거기에 `syntaxHighlighting(defaultHighlightStyle, { fallback: true })`이
+포함된다. `fallback: true`는 다른 하이라이트 스타일이 없을 때만 적용된다는
+뜻이므로, fallback이 아닌 우리 스타일을 등록하면 우선한다. 적용 후 실제로
+우리 색이 나오는지 스크린샷으로 확인한다.
+
+`src/features/editor/theme.ts`를 만들어 두 가지를 내보낸다.
 
 1. `EditorView.theme({...}, { dark: true })` — 에디터 크롬:
    배경 `--code-bg`, 거터 배경/우측 보더, 줄번호 `--ink-3` + `tabular-nums`,
@@ -232,8 +249,13 @@ timeout `--warn`/`--warn-wash`, running `--accent`/`--accent-wash`.
 | `src/features/editor/CodeEditor.tsx` | `theme` prop 연결 |
 | `src/features/editor/EditorPanel.tsx` | 파일 탭 + 문법 상태 표시 |
 | `src/features/output/*` | 탭 바, 케이스 카드, 마크, 점수, 터미널, 치명적 오류 |
-| `src/ui/Button.tsx` (신규) | 버튼 프리미티브 |
-| `src/editor/theme.ts` (신규) | CM6 테마 + 하이라이트 |
+| `src/ui/Button.tsx` (신규) | 버튼 프리미티브. 기능 간 공용이라 `src/features/` 밖에 새 최상위 폴더로 둔다 |
+| `src/features/editor/theme.ts` (신규) | CM6 테마 + 하이라이트 |
+| `package.json` · `package-lock.json` | `@codemirror/language`, `@lezer/highlight` 직접 의존성 추가 |
+
+`global.css`에는 현재 `th, td { border: 1px solid var(--border); padding: 6px; }`
+라는 전역 규칙이 있어 예시 테이블 스타일과 충돌한다. 1단계에서 이 규칙을
+제거하고, 테이블 스타일은 3단계의 예시 테이블 쪽으로 옮긴다.
 
 ## 7. 검증
 
@@ -247,6 +269,9 @@ timeout `--warn`/`--warn-wash`, running `--accent`/`--accent-wash`.
 - 단계마다 Playwright 스크린샷을 찍어 **실제로 눈으로 확인한다.**
   이번 사태의 원인이 아무도 화면을 보지 않은 것이었다
 - 유닛 테스트 22개와 타입체크는 계속 통과해야 한다
+- 보조 텍스트 `--ink-3`(#6e7b8d)이 패널 배경 `--sheet`(#151c25) 위에서 WCAG AA
+  본문 기준(4.5:1)에 미치는지 확인한다. 미달이면 보조 텍스트 전용으로 한 단계
+  밝은 값을 두되, 테두리·구분선 용도의 `--ink-3` 사용처는 그대로 둔다
 
 ## 8. 단계 구분
 

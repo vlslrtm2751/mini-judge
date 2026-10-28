@@ -1,0 +1,222 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 38px;
+  flex: none;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.brandName {
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.brandLang {
+  font-family: var(--f-code);
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.picker {
+  margin-left: auto;
+  position: relative;
+  min-width: 0;
+}
+
+.picker::after {
+  content: '';
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--ink-2);
+  border-bottom: 1.5px solid var(--ink-2);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.picker select {
+  appearance: none;
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 100%;
+  padding: 7px 34px 7px 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: var(--sheet);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.picker select:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.grow {
+  flex: 1;
+}
+
+.kbdHint {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.kbdHint kbd {
+  font-family: var(--f-code);
+  font-size: 11px;
+  border: 1px solid var(--rule-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 5px;
+  background: var(--sheet);
+  color: var(--ink-2);
+}
+
+.editorPanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.editorBar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 38px;
+  flex: none;
+  padding: 0 10px 0 4px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.fileTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 10px;
+  font-family: var(--f-code);
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 2px solid var(--accent);
+  margin-bottom: -1px;
+}
+
+.fileTag {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+
+.editorHost {
+  flex: 1;
+  min-height: 0;
+}
+
+.lint {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.lint::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+}
+
+.lint span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lint[data-state='error'] {
+  color: var(--pen);
+}
+
+.lint[data-state='error']::before {
+  background: var(--pen);
+}
+
+.mobileTabs {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--sheet-2);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  flex: none;
+}
+
+.mobileTabs button {
+  flex: 1;
+  height: 34px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.mobileTabs button[aria-pressed='true'] {
+  background: var(--sheet);
+  color: var(--ink);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+/* 좁은 화면에서는 부가 정보를 걷어내야 상단바와 액션바가 잘리지 않는다.
+   .page가 overflow:hidden이라 넘친 내용은 스크롤되지 않고 그냥 잘린다. */
+@media (max-width: 760px) {
+  .brandLang {
+    display: none;
+  }
+
+  .picker select {
+    /* 16px 미만이면 iOS Safari가 포커스 시 화면을 확대한다 */
+    font-size: 16px;
+    max-width: 62vw;
+    text-overflow: ellipsis;
+  }
+
+  .kbdHint {
+    display: none;
+  }
+
+  .grow {
+    display: none;
+  }
+
+  .actions {
+    gap: 6px;
+  }
+}

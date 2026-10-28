@@ -4,6 +4,7 @@ import { linter } from '@codemirror/lint';
 import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { useMemo, useRef } from 'react';
 import { checkSyntax } from '@/runner/syntax';
+import { editorHighlight, editorTheme } from './theme';
 
 export function CodeEditor({
   code,
@@ -39,7 +40,8 @@ export function CodeEditor({
       value={code}
       height="100%"
       onChange={onChange}
-      extensions={[javascript(), syntaxLinter]}
+      theme={editorTheme}
+      extensions={[javascript(), syntaxLinter, editorHighlight]}
       onCreateEditor={(editor) => {
         onToggleComment(() => {
           toggleComment(editor);

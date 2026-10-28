@@ -1,17 +1,66 @@
+/* 다크 전용. 라이트 값도 prefers-color-scheme 분기도 두지 않는다. */
 :root {
-  --bg: #ffffff;
-  --fg: #111111;
-  --border: #d9d9df;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #121319;
-    --fg: #f5f6ff;
-    --border: #393d4a;
-  }
-}
-[data-theme='dark'] {
-  --bg: #121319;
-  --fg: #f5f6ff;
-  --border: #393d4a;
+  color-scheme: dark;
+
+  /* 표면 */
+  --paper: #0d1218;
+  --sheet: #151c25;
+  --sheet-2: #1b2430;
+
+  /* 텍스트 */
+  --ink: #e5eaf1;
+  --ink-2: #a8b3c2;
+  /* 목업의 #6e7b8d는 --sheet 위에서 3.99:1로 WCAG AA(4.5:1)에 미달한다.
+     줄번호·소요 시간·힌트처럼 실제로 읽어야 하는 보조 텍스트에 쓰이므로
+     4.63:1이 되도록 한 단계 밝혔다. */
+  --ink-3: #78869a;
+
+  /* 경계 */
+  --rule: #28323f;
+  --rule-strong: #364252;
+
+  /* 강조 */
+  --accent: #7096ff;
+  --accent-ink: #0b1220;
+  --accent-wash: #1b2540;
+
+  /* 채점 상태 */
+  --pen: #ff5f6b;
+  --pen-wash: #2a171b;
+  --pen-line: #5a2a31;
+  --ok: #4cc98f;
+  --ok-wash: #13281f;
+  --warn: #e9a640;
+  --warn-wash: #2b2114;
+
+  /* 기타 */
+  --shadow: rgba(0, 0, 0, 0.4);
+  --sel: #2a3a63;
+  --err-wash: rgba(255, 95, 107, 0.12);
+
+  /* 코드 */
+  --code-bg: #121820;
+  --tok-kw: #ff7ab6;
+  --tok-def: #8eb0ff;
+  --tok-var2: #8cc4ff;
+  --tok-str: #7fd6a3;
+  --tok-num: #f3b26b;
+  --tok-atom: #c3a1ff;
+  --tok-prop: #c2cddb;
+  --tok-comment: #6e7b8d;
+
+  /* 터미널 */
+  --term-bg: #0a0e14;
+  --term-fg: #d6dde7;
+  --term-dim: #7a879a;
+  --term-path: #7fa6ff;
+  --term-err: #ff7b7b;
+  --term-ok: #5fd39a;
+  --term-warn: #f0b75a;
+
+  /* 타이포 */
+  --f-ui: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --f-title: 'Noto Serif KR', Georgia, serif;
+  --f-code: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  --f-pen: 'Nanum Pen Script', cursive;
 }

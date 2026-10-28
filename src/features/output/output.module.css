@@ -1,0 +1,387 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.bar {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  height: 38px;
+  flex: none;
+  padding: 0 10px 0 4px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.tab[aria-pressed='true'] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.summaryCount {
+  margin-left: auto;
+  align-self: center;
+  font-size: 13px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* .bar로 한정해 특이성을 Button.module.css의 .btn보다 높인다. 같은 특이성이면
+   번들 내 CSS 순서에 따라 승패가 갈려 불안정하다. */
+.bar .clear {
+  align-self: center;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.results {
+  padding: 14px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.empty {
+  padding: 18px;
+  color: var(--ink-2);
+  display: grid;
+  gap: 8px;
+  max-width: 60ch;
+  line-height: 1.6;
+}
+
+.cases {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.case {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--sheet);
+}
+
+.caseHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  min-height: 42px;
+}
+
+.caseName {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.chip {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--sheet-2);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.case[data-status='pass'] .chip {
+  color: var(--ok);
+  background: var(--ok-wash);
+}
+
+.case[data-status='fail'] .chip,
+.case[data-status='error'] .chip {
+  color: var(--pen);
+  background: var(--pen-wash);
+}
+
+.case[data-status='timeout'] .chip {
+  color: var(--warn);
+  background: var(--warn-wash);
+}
+
+.case[data-status='running'] .chip {
+  color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.hiddenTag {
+  font-size: 11px;
+  color: var(--ink-3);
+  border: 1px dashed var(--rule-strong);
+  padding: 0 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.time {
+  margin-left: auto;
+  font-family: var(--f-code);
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 빨간 펜 채점 마크. 통과는 비뚤어진 동그라미, 실패는 사선. */
+.mark {
+  width: 24px;
+  height: 24px;
+  position: relative;
+  flex: none;
+}
+
+.mark::before {
+  content: '';
+  position: absolute;
+}
+
+.case[data-status='pending'] .mark::before {
+  left: 9px;
+  top: 9px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rule-strong);
+}
+
+.case[data-status='running'] .mark::before {
+  inset: 4px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-wash);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+.case[data-status='pass'] .mark::before {
+  inset: 1px;
+  border: 2.5px solid var(--pen);
+  border-radius: 50% 44% 54% 47%;
+  transform: rotate(-14deg);
+  animation: ink 0.22s ease-out;
+}
+
+/* 오답·오류·시간 초과가 공유하는 획 모양. 색과 각도는 아래에서 갈린다.
+   스펙 5절은 셋을 한 규칙으로 묶었지만, 성공 기준은 "통과/실패/시간초과/에러를
+   색과 마크로 구분"하라고 한다. 기준 쪽을 따른다. */
+.case[data-status='fail'] .mark::before,
+.case[data-status='error'] .mark::before,
+.case[data-status='timeout'] .mark::before {
+  left: 1px;
+  right: 1px;
+  top: 10.5px;
+  height: 3px;
+  border-radius: 2px;
+  animation: ink 0.22s ease-out;
+}
+
+/* 오답: 빨간 펜 사선 */
+.case[data-status='fail'] .mark::before {
+  background: var(--pen);
+  transform: rotate(-58deg);
+}
+
+/* 오류: 사선 두 개를 겹친 ×. 틀린 답과 실행 자체의 실패를 모양으로 가른다. */
+.case[data-status='error'] .mark::before {
+  background: var(--pen);
+  transform: rotate(45deg);
+}
+
+.case[data-status='error'] .mark::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 10.5px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--pen);
+  transform: rotate(-45deg);
+  animation: ink 0.22s ease-out;
+}
+
+/* 시간 초과: 같은 사선이되 경고색 */
+.case[data-status='timeout'] .mark::before {
+  background: var(--warn);
+  transform: rotate(-58deg);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ink {
+  from {
+    opacity: 0;
+    transform: rotate(-14deg) scale(0.6);
+  }
+}
+
+.detail {
+  margin: 0;
+  padding: 2px 12px 12px 46px;
+  display: grid;
+  gap: 6px;
+}
+
+.detail > div {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+}
+
+.detail dt {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.detail dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.detail pre {
+  font-family: var(--f-code);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  background: var(--sheet-2);
+  padding: 6px 9px;
+  border-radius: 6px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.detail .err {
+  color: var(--pen);
+}
+
+/* 손글씨 점수 */
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-height: 48px;
+}
+
+.score {
+  font-family: var(--f-pen);
+  color: var(--pen);
+  font-size: 46px;
+  line-height: 0.9;
+  transform: rotate(-4deg);
+  padding: 4px 10px 0;
+  white-space: nowrap;
+}
+
+.scorePerfect {
+  position: relative;
+}
+
+.scorePerfect::before {
+  content: '';
+  position: absolute;
+  inset: -6px -6px -4px;
+  border: 2.5px solid var(--pen);
+  border-radius: 50% 46% 52% 48%;
+  transform: rotate(-5deg);
+}
+
+.summaryText {
+  display: grid;
+  gap: 2px;
+}
+
+.summarySub {
+  font-size: 13px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.fatal {
+  border: 1px solid var(--pen-line);
+  background: var(--pen-wash);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 14px 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.fatalTitle {
+  margin: 0;
+  font-weight: 700;
+  color: var(--pen);
+  font-size: 15px;
+}
+
+.fatal pre {
+  margin: 0;
+  font-family: var(--f-code);
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+
+.fatal p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+/* 터미널: pre가 패널을 밀지 않도록 컨테이너가 스크롤을 흡수한다. */
+.terminal {
+  background: var(--term-bg);
+  height: 100%;
+  overflow: auto;
+}
+
+.terminalText {
+  margin: 0;
+  padding: 12px 14px 16px;
+  font-family: var(--f-code);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--term-fg);
+  white-space: pre;
+  tab-size: 4;
+  min-width: 0;
+}
+
+.cursor {
+  color: var(--term-dim);
+}

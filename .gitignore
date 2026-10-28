@@ -31,3 +31,7 @@ scripts/*.js
 scripts/*.d.ts
 src/**/*.js
 src/**/*.d.ts
+
+# 로컬 목업 사본 (아티팩트 KELeNQQq68XbhWaFWRisTe의 복사본). 저장소에 들어갈
+# 물건이 아니고, eslint.config.js도 이 경로를 무시하도록 설정돼 있다.
+prototype/

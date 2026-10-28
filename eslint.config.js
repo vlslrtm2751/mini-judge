@@ -6,7 +6,9 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import prettier from 'eslint-config-prettier';
 
 export default [
-  { ignores: ['dist', 'coverage', 'problems/**/*.js'] },
+  // prototype/는 gitignore된 목업 사본이라 CI에는 없지만, 로컬에서 lint를
+  // 돌리면 그 안의 starter.js들이 에러로 잡혀 진짜 에러를 가린다.
+  { ignores: ['dist', 'coverage', 'prototype', 'problems/**/*.js'] },
   js.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],

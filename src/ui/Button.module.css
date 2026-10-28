@@ -1,0 +1,49 @@
+.btn {
+  appearance: none;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--rule-strong);
+  background: var(--sheet);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--ink-3);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+/* 기본 variant에도 클래스 이름이 필요하다. Button.tsx가 styles[variant]로
+   참조하므로 이 규칙이 없으면 undefined가 되어 className에 붙지 않는다. */
+.default {
+  /* 기본 모양은 .btn이 전부 정의한다 */
+}
+
+.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-2);
+  padding: 0 10px;
+}
+
+.ghost:hover:not(:disabled) {
+  color: var(--ink);
+}

@@ -100,20 +100,99 @@ test('보조 텍스트가 패널 위에서 WCAG AA 대비를 넘는다', async (
   expect(ratio).toBeGreaterThanOrEqual(4.5);
 });
 
-test('Tab으로 이동하면 포커스 링이 보인다', async ({ page }) => {
+test('Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이 보인다', async ({ page }) => {
   await page.goto('/');
   // 앱이 렌더되기 전에 Tab을 누르면 포커스할 대상이 없어 body에 머문다.
   await page.locator('select').waitFor();
-  await page.keyboard.press('Tab');
 
-  const outline = await page.evaluate(() => {
-    const el = document.activeElement as HTMLElement | null;
-    if (!el || el === document.body) return null;
-    const s = getComputedStyle(el);
-    return { width: s.outlineWidth, style: s.outlineStyle, tag: el.tagName };
+  const probe = () =>
+    page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || el === document.body) return null;
+      const s = getComputedStyle(el);
+      return {
+        label: `${el.tagName}:${(el.getAttribute('class') ?? '').replace(/_[a-z0-9]{5,}_\d+/gi, '').trim() || (el.textContent ?? '').trim().slice(0, 8)}`,
+        // 에디터는 자체 커서로 포커스를 드러내고 테마가 outline을 끈다.
+        inEditor: Boolean(el.closest('.cm-editor')),
+        ring: s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) >= 2,
+      };
+    });
+
+  const visited: { label: string; ring: boolean }[] = [];
+  for (let i = 0; i < 14; i += 1) {
+    await page.keyboard.press('Tab');
+    const info = await probe();
+    if (!info) continue;
+    if (info.inEditor) {
+      // CodeMirror는 indentWithTab이 켜져 있어 Tab을 삼킨다. Escape로 빠져나온다.
+      await page.keyboard.press('Escape');
+      continue;
+    }
+    visited.push({ label: info.label, ring: info.ring });
+  }
+
+  const noRing = visited.filter((v) => !v.ring);
+  expect(noRing, `포커스 링이 없는 요소: ${JSON.stringify(noRing)}`).toEqual([]);
+
+  // 선택기·스플리터·탭·액션 버튼을 모두 지나왔는지 — 한 종류만 보고 끝내지 않는다.
+  const labels = visited.map((v) => v.label).join(' ');
+  expect(labels).toContain('SELECT');
+  expect(labels).toContain('DIV');
+  expect(visited.filter((v) => v.label.startsWith('BUTTON')).length).toBeGreaterThanOrEqual(5);
+});
+
+test('클래스 이름과 정규식 리터럴에도 색이 입혀진다', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('.cm-content').fill('const m = new Map(); const re = /[0-9]+/g; class Foo {}');
+
+  // CM6는 스타일이 걸린 범위에만 span을 만든다. 색이 없는 토큰은 아예 span으로
+  // 나오지 않으므로, 대비 테스트는 이런 누락을 원리적으로 볼 수 없다.
+  const spans = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.cm-line span')).map((el) => el.textContent ?? ''),
+  );
+
+  expect(spans.some((t) => t.includes('Map')), `Map이 무채색: ${JSON.stringify(spans)}`).toBe(true);
+  expect(spans.some((t) => t.includes('Foo')), `Foo가 무채색: ${JSON.stringify(spans)}`).toBe(true);
+  expect(spans.some((t) => t.includes('[0-9]+')), `정규식이 무채색: ${JSON.stringify(spans)}`).toBe(true);
+});
+
+test('버튼 세 variant가 서로 다른 위계로 보이고 disabled가 드러난다', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '제출' }).waitFor();
+
+  const styles = await page.evaluate(() => {
+    const byText = (t: string) =>
+      Array.from(document.querySelectorAll('button')).find((b) => (b.textContent ?? '').trim() === t)!;
+    const read = (el: HTMLElement) => {
+      const s = getComputedStyle(el);
+      return [s.backgroundColor, s.borderTopColor, s.color].join('|');
+    };
+
+    const submit = byText('제출');
+    // disabled는 실행 중에만 나타나 붙잡기 어렵다. 복제본으로 규칙만 확인한다.
+    const clone = submit.cloneNode(true) as HTMLButtonElement;
+    clone.disabled = true;
+    clone.style.cssText = 'position:absolute;left:-9999px';
+    document.body.appendChild(clone);
+    const disabled = { opacity: getComputedStyle(clone).opacity, cursor: getComputedStyle(clone).cursor };
+    clone.remove();
+
+    return {
+      ghost: read(byText('초기화')),
+      standard: read(byText('테스트 실행')),
+      primary: read(submit),
+      disabled,
+    };
   });
 
-  expect(outline).not.toBeNull();
-  expect(outline!.style).not.toBe('none');
-  expect(parseFloat(outline!.width)).toBeGreaterThanOrEqual(2);
+  // 세 variant가 서로 구별돼야 위계가 성립한다.
+  expect(new Set([styles.ghost, styles.standard, styles.primary]).size).toBe(3);
+
+  // 토큰에서 온 값인지 — 스타일이 통째로 빠지면 브라우저 기본값이 나온다.
+  expect(styles.primary).toContain('rgb(112, 150, 255)'); // --accent
+  expect(styles.standard).toContain('rgb(21, 28, 37)'); // --sheet
+  expect(styles.ghost).toContain('rgba(0, 0, 0, 0)'); // 투명
+
+  expect(parseFloat(styles.disabled.opacity)).toBeLessThan(1);
+  expect(styles.disabled.cursor).toBe('progress');
 });

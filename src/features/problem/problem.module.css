@@ -91,6 +91,9 @@
   border: 1px solid var(--rule);
   padding: 1px 5px;
   border-radius: 4px;
+  /* 끊기지 않는 긴 식별자가 패널을 가로로 밀지 않도록 한다. 패널이 최소 폭일
+     때 특히 중요하다 — .pane이 clip하므로 넘치면 글자가 잘려 보이지 않는다. */
+  overflow-wrap: anywhere;
 }
 
 .md pre {

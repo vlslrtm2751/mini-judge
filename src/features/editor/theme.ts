@@ -63,6 +63,13 @@ const highlight = HighlightStyle.define([
   { tag: tags.number, color: 'var(--tok-num)' },
   { tag: [tags.bool, tags.null, tags.atom], color: 'var(--tok-atom)' },
   { tag: tags.propertyName, color: 'var(--tok-prop)' },
+  // CM5의 cm-type / cm-variable-3에 해당한다. 이게 없으면 new Map(), new Set(),
+  // class Foo가 무채색으로 남는다 — CM6는 색이 없는 토큰에 span을 만들지 않아
+  // 대비 테스트로는 잡히지 않는다.
+  { tag: [tags.className, tags.typeName, tags.namespace], color: 'var(--tok-atom)' },
+  // CM5의 cm-string-2가 정규식이었다. escape도 문자열 계열로 묶는다.
+  { tag: [tags.regexp, tags.escape], color: 'var(--tok-str)' },
+  { tag: tags.labelName, color: 'var(--tok-var2)' },
   { tag: tags.comment, color: 'var(--tok-comment)', fontStyle: 'italic' },
   { tag: [tags.operator, tags.punctuation, tags.separator, tags.bracket], color: 'var(--ink-2)' },
 ]);

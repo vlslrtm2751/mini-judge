@@ -188,6 +188,9 @@
   animation: ink 0.22s ease-out;
 }
 
+/* 오답·오류·시간 초과가 공유하는 획 모양. 색과 각도는 아래에서 갈린다.
+   스펙 5절은 셋을 한 규칙으로 묶었지만, 성공 기준은 "통과/실패/시간초과/에러를
+   색과 마크로 구분"하라고 한다. 기준 쪽을 따른다. */
 .case[data-status='fail'] .mark::before,
 .case[data-status='error'] .mark::before,
 .case[data-status='timeout'] .mark::before {
@@ -196,9 +199,38 @@
   top: 10.5px;
   height: 3px;
   border-radius: 2px;
+  animation: ink 0.22s ease-out;
+}
+
+/* 오답: 빨간 펜 사선 */
+.case[data-status='fail'] .mark::before {
   background: var(--pen);
   transform: rotate(-58deg);
+}
+
+/* 오류: 사선 두 개를 겹친 ×. 틀린 답과 실행 자체의 실패를 모양으로 가른다. */
+.case[data-status='error'] .mark::before {
+  background: var(--pen);
+  transform: rotate(45deg);
+}
+
+.case[data-status='error'] .mark::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 10.5px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--pen);
+  transform: rotate(-45deg);
   animation: ink 0.22s ease-out;
+}
+
+/* 시간 초과: 같은 사선이되 경고색 */
+.case[data-status='timeout'] .mark::before {
+  background: var(--warn);
+  transform: rotate(-58deg);
 }
 
 @keyframes spin {

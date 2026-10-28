@@ -135,10 +135,12 @@ test('Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이 �
   expect(noRing, `포커스 링이 없는 요소: ${JSON.stringify(noRing)}`).toEqual([]);
 
   // 선택기·스플리터·탭·액션 버튼을 모두 지나왔는지 — 한 종류만 보고 끝내지 않는다.
-  const labels = visited.map((v) => v.label).join(' ');
-  expect(labels).toContain('SELECT');
-  expect(labels).toContain('DIV');
-  expect(visited.filter((v) => v.label.startsWith('BUTTON')).length).toBeGreaterThanOrEqual(5);
+  // 순회는 한 바퀴를 돌아 같은 요소를 다시 만날 수 있으므로 고유 개수로 센다.
+  // 등장 횟수로 세면 같은 버튼을 두 번 만난 것만으로 임계값을 넘길 수 있다.
+  const distinct = [...new Set(visited.map((v) => v.label))];
+  expect(distinct.some((l) => l.startsWith('SELECT')), `선택기 미방문: ${distinct}`).toBe(true);
+  expect(distinct.filter((l) => l.startsWith('DIV')).length, `스플리터 미방문: ${distinct}`).toBeGreaterThanOrEqual(2);
+  expect(distinct.filter((l) => l.startsWith('BUTTON')).length, `버튼 부족: ${distinct}`).toBeGreaterThanOrEqual(5);
 });
 
 test('클래스 이름과 정규식 리터럴에도 색이 입혀진다', async ({ page }) => {

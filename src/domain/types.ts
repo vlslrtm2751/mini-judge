@@ -62,7 +62,13 @@ export interface CaseResult {
   logs: LogEntry[];
 }
 
-export type FatalReason = 'syntax' | 'no-solution' | 'top-level-error' | 'top-level-timeout';
+export type FatalReason =
+  | 'syntax'
+  | 'no-solution'
+  | 'top-level-error'
+  | 'top-level-timeout'
+  // 워커 스크립트를 못 불러온 경우. 사용자 코드 문제가 아니므로 따로 둔다.
+  | 'worker-failed';
 export interface Fatal {
   reason: FatalReason;
   error?: ErrorInfo;

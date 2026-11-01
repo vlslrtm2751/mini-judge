@@ -19,6 +19,9 @@ export function ProblemMeta({ meta, suite }: { meta: Meta; suite: TestSuite }) {
           공개 {suite.public.length} · 숨김 {suite.hidden.length}
         </span>
         <span>{compareLabel(suite.compare)}</span>
+        {/* id는 URL에만 남아 있었다. 버그 신고나 공유에서 문제를 특정하려면
+            화면에 한 곳은 있어야 한다. */}
+        <span className={styles.id}>{meta.id}</span>
       </div>
     </header>
   );

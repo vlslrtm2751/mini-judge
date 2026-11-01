@@ -73,14 +73,28 @@ test('에디터의 모든 구문 토큰이 배경과 구분된다', async ({ pag
   expect(tooClose, `배경에 묻히는 토큰: ${JSON.stringify(tooClose)}`).toEqual([]);
 });
 
-test('보조 텍스트가 패널 위에서 WCAG AA 대비를 넘는다', async ({ page }) => {
+test('읽어야 하는 텍스트가 실제 렌더된 배경 위에서 AA 대비를 넘는다', async ({ page }) => {
   await page.goto('/');
+  await page.locator('.cm-content').fill(`// 주석도 읽혀야 한다
+function solution(n) { return n; }`);
+  await page.getByRole('button', { name: '제출' }).click();
+  await expect(page.getByText(/\d+\/\d+/).first()).toBeVisible();
 
-  const ratio = await page.evaluate(() => {
-    const s = getComputedStyle(document.documentElement);
-    const hex = (name: string) => {
-      const v = s.getPropertyValue(name).trim().replace('#', '');
-      return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16));
+  // 변수 두 개를 계산하면 실제로 쓰이는 조합을 놓친다. --ink-3는 --sheet
+  // 위에서는 통과하지만 한 단계 어두운 --sheet-2 위에서는 미달이었다.
+  // 렌더된 요소에서 전경과 실제로 칠해진 배경을 읽는다.
+  const offenders = await page.evaluate(() => {
+    const ch = (c: string) => (c.match(/[\d.]+/g) ?? []).map(Number);
+    const painted = (start: Element): number[] => {
+      let node: Element | null = start;
+      while (node) {
+        const v = ch(getComputedStyle(node).backgroundColor);
+        // 알파가 낮은 층(.cm-activeLine의 6% 틴트 같은)은 실제 배경이 아니다.
+        // 불투명하게 읽으면 그 색을 배경으로 착각해 대비가 터무니없이 낮게 나온다.
+        if (v.length >= 3 && (v.length < 4 || v[3] >= 0.5)) return v.slice(0, 3);
+        node = node.parentElement;
+      }
+      return [0, 0, 0];
     };
     const lum = (rgb: number[]) => {
       const [r, g, b] = rgb.map((v) => {
@@ -89,15 +103,48 @@ test('보조 텍스트가 패널 위에서 WCAG AA 대비를 넘는다', async (
       });
       return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     };
-    const a = lum(hex('--ink-3'));
-    const b = lum(hex('--sheet'));
-    const [hi, lo] = a > b ? [a, b] : [b, a];
-    return (hi + 0.05) / (lo + 0.05);
+    const ratio = (fg: number[], bg: number[]) => {
+      const [hi, lo] = lum(fg) > lum(bg) ? [lum(fg), lum(bg)] : [lum(bg), lum(fg)];
+      return (hi + 0.05) / (lo + 0.05);
+    };
+
+    // pending/running 칩은 채점이 끝나면 화면에 남지 않는다. 실제 렌더된
+    // 케이스의 해시 클래스를 빌려 합성해 측정 대상에 넣는다.
+    const sample = document.querySelector('li[data-status]');
+    if (sample) {
+      const chipClass = (sample.querySelector('[class*="chip"]') as HTMLElement).className;
+      const host = document.createElement('ul');
+      host.style.cssText = 'position:absolute;left:-9999px;top:0';
+      document.body.appendChild(host);
+      for (const status of ['pending', 'running']) {
+        const li = document.createElement('li');
+        li.className = sample.className;
+        li.dataset.status = status;
+        const chip = document.createElement('span');
+        chip.className = chipClass;
+        chip.textContent = status === 'pending' ? '대기' : '채점 중';
+        li.appendChild(chip);
+        host.appendChild(li);
+      }
+    }
+
+    const targets = [
+      ...document.querySelectorAll('[class*="chip"], [class*="time"], [class*="hiddenTag"]'),
+      ...document.querySelectorAll('.cm-line span'),
+      ...document.querySelectorAll('[class*="kbdHint"], [class*="brandLang"], [class*="summarySub"]'),
+    ];
+
+    return targets
+      .filter((el) => (el.textContent ?? '').trim().length > 0)
+      .map((el) => {
+        const s = getComputedStyle(el as HTMLElement);
+        const r = ratio(ch(s.color).slice(0, 3), painted(el));
+        return { text: (el.textContent ?? '').trim().slice(0, 16), color: s.color, ratio: Number(r.toFixed(2)) };
+      })
+      .filter((t) => t.ratio < 4.5);
   });
 
-  // 본문 텍스트 기준 4.5:1. --ink-3는 줄번호·소요 시간·힌트 등 읽어야 하는
-  // 보조 텍스트에 쓰인다.
-  expect(ratio).toBeGreaterThanOrEqual(4.5);
+  expect(offenders, `AA 미달: ${JSON.stringify(offenders)}`).toEqual([]);
 });
 
 test('Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이 보인다', async ({ page }) => {
@@ -197,4 +244,19 @@ test('버튼 세 variant가 서로 다른 위계로 보이고 disabled가 드러
 
   expect(parseFloat(styles.disabled.opacity)).toBeLessThan(1);
   expect(styles.disabled.cursor).toBe('progress');
+});
+
+test('채점이 끝나면 라이브 리전이 결과를 알린다', async ({ page }) => {
+  await page.goto('/');
+
+  // 라이브 리전은 내용이 바뀌기 전부터 떠 있어야 읽힌다.
+  const status = page.locator('[role="status"]');
+  await expect(status).toHaveCount(1);
+  await expect(status).toHaveText('');
+
+  await page.getByRole('button', { name: '제출' }).click();
+  await expect(page.getByText('6/6').first()).toBeVisible();
+
+  await expect(status).toContainText('채점 완료');
+  await expect(status).toContainText('6/6');
 });

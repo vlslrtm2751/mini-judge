@@ -51,8 +51,14 @@ textarea {
   position: absolute;
   width: 1px;
   height: 1px;
+  /* padding과 border를 0으로 두지 않으면 1px 상자가 그만큼 커져 레이아웃에
+     영향을 준다. clip은 폐기된 속성이라 clip-path를 함께 쓴다. */
+  padding: 0;
+  border: 0;
+  margin: -1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 

@@ -58,9 +58,10 @@ describe('useShortcuts', () => {
     expect(first).not.toHaveBeenCalled();
   });
 
-  it('에디터 안에서 누른 Escape는 채점을 멈추지 않는다', () => {
-    // Escape는 CodeMirror의 탭 캡처를 빠져나오는 키이기도 하다. 채점 중에
-    // 키보드로 에디터를 벗어나려다 실행이 취소되면 안 된다.
+  it('에디터 안에서 누른 Escape도 채점을 멈춘다', () => {
+    // 한때 에디터 안의 Escape를 걸러낸 적이 있다. 탭 캡처 해제와 겹친다는
+    // 이유였는데, 그러면 무한 루프를 멈출 키보드 수단이 사라진다 — 멈추려는
+    // 사람은 대개 에디터에 포커스를 두고 있다. 이 가드가 그 되돌림을 지킨다.
     const onStop = vi.fn();
     const host = document.createElement('div');
     document.body.appendChild(host);
@@ -75,11 +76,6 @@ describe('useShortcuts', () => {
     act(() => {
       content.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
-    expect(onStop, '에디터 안 Escape가 채점을 멈춤').not.toHaveBeenCalled();
-
-    act(() => {
-      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    });
-    expect(onStop, '에디터 바깥 Escape가 채점을 멈추지 않음').toHaveBeenCalledTimes(1);
+    expect(onStop, '에디터 안 Escape가 무시됨 — 키보드로 중단할 길이 없다').toHaveBeenCalledTimes(1);
   });
 });

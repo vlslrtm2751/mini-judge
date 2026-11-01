@@ -30,10 +30,11 @@ export function useShortcuts(handlers: Handlers) {
         event.preventDefault();
         h.toggleComment();
       } else if (event.key === 'Escape') {
-        // Escape는 CodeMirror의 탭 캡처를 빠져나오는 키이기도 하다. 에디터 안에서
-        // 누른 것까지 중지로 받으면 키보드로 에디터를 벗어나려다 채점이 취소된다.
-        const target = event.target as Element | null;
-        if (target?.closest?.('.cm-editor')) return;
+        // 에디터 안에서 누른 Escape도 중지로 받는다. CodeMirror의 탭 캡처를
+        // 끄는 키와 겹치지만, 무한 루프를 돌려놓고 멈추려는 사람은 대개 에디터에
+        // 포커스를 둔 상태다. 여기서 걸러내면 키보드로 중단할 길이 사라진다
+        // (Escape는 포커스를 옮기지 않으므로 두 번 눌러도 마찬가지다).
+        // 실행 중이 아니면 stop()은 아무 일도 하지 않으므로 평소에는 무해하다.
         h.stop();
       }
     };

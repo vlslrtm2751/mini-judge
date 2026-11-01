@@ -38,6 +38,11 @@ export function OutputPanel() {
           지우기
         </Button>
       </div>
+      {/* 채점이 끝나도 비시각 사용자에게는 아무 일도 일어나지 않은 것과 같았다.
+          항상 떠 있는 live region이라야 내용이 바뀔 때 읽힌다. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {report ? `채점 완료, ${report.passed}/${report.total} 통과${report.score != null ? `, ${report.score}점` : ''}` : ''}
+      </p>
       <div className={styles.body}>{tab === 'results' ? <ResultsView /> : <TerminalView />}</div>
     </section>
   );

@@ -30,6 +30,10 @@ export function useShortcuts(handlers: Handlers) {
         event.preventDefault();
         h.toggleComment();
       } else if (event.key === 'Escape') {
+        // Escape는 CodeMirror의 탭 캡처를 빠져나오는 키이기도 하다. 에디터 안에서
+        // 누른 것까지 중지로 받으면 키보드로 에디터를 벗어나려다 채점이 취소된다.
+        const target = event.target as Element | null;
+        if (target?.closest?.('.cm-editor')) return;
         h.stop();
       }
     };

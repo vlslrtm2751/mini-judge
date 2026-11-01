@@ -47,7 +47,9 @@
   --tok-num: #f3b26b;
   --tok-atom: #c3a1ff;
   --tok-prop: #c2cddb;
-  --tok-comment: #6e7b8d;
+  /* 목업 값 #6e7b8d는 --code-bg 위에서 4.15:1로 AA 미달이다. 주석도 읽으라고
+     쓰는 글이므로 --ink-3와 같은 값으로 올렸다(4.81:1). */
+  --tok-comment: #78869a;
 
   /* 터미널 */
   --term-bg: #0a0e14;

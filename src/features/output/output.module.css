@@ -107,7 +107,10 @@
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--sheet-2);
+  /* --sheet-2 위에서는 --ink-3가 4.23:1로 AA 미달이다. 한 단계 어두운 면을
+     깔아 5.08:1로 올린다. 아직 돌지 않은 칩이 가라앉아 보이는 효과도 맞다.
+     상태별 규칙이 각자 배경을 덮으므로 영향은 기본·대기 칩뿐이다. */
+  background: var(--paper);
   color: var(--ink-3);
   white-space: nowrap;
 }

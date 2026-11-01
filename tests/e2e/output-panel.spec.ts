@@ -71,10 +71,13 @@ test('긴 터미널 한 줄을 터미널 스크롤러가 떠안는다', async ({
   await page.goto('/');
   await page.locator('.cm-content').fill(solution("console.log('x'.repeat(5000)); return 0;"));
   await page.getByRole('button', { name: '테스트 실행' }).click();
-  await page.getByRole('button', { name: '터미널' }).click();
+  // 채점이 끝나기를 기다린다. 로그가 도착하기 전에 재면 넘칠 것이 없어
+  // 통과해버리고, 머신이 바쁠 때만 실패하는 들쭉날쭉한 테스트가 된다.
+  await expect(page.getByText('0/3').first()).toBeVisible();
 
+  await page.getByRole('button', { name: '터미널' }).click();
   const term = page.locator('[class*="terminal"]').first();
-  await term.waitFor();
+  await expect(term).toContainText('xxxxx');
 
   const m = await term.evaluate((el) => ({
     termScroll: el.scrollWidth,

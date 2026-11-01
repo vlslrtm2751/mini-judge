@@ -7,6 +7,11 @@ import { useShortcuts } from '@/hooks/useShortcuts';
 
 const noop = () => undefined;
 
+function HarnessStop({ onStop }: { onStop: () => void }) {
+  useShortcuts({ runTest: noop, submit: noop, stop: onStop, toggleComment: noop });
+  return null;
+}
+
 function Harness({ onRun }: { onRun: () => void }) {
   // 호출부와 똑같이 매 렌더마다 새 객체를 만든다. IdePage도 이렇게 쓴다.
   useShortcuts({ runTest: onRun, submit: noop, stop: noop, toggleComment: noop });
@@ -51,5 +56,30 @@ describe('useShortcuts', () => {
 
     expect(latest, '최신 핸들러가 불리지 않음 — ref가 갱신되지 않았다').toHaveBeenCalledTimes(1);
     expect(first).not.toHaveBeenCalled();
+  });
+
+  it('에디터 안에서 누른 Escape는 채점을 멈추지 않는다', () => {
+    // Escape는 CodeMirror의 탭 캡처를 빠져나오는 키이기도 하다. 채점 중에
+    // 키보드로 에디터를 벗어나려다 실행이 취소되면 안 된다.
+    const onStop = vi.fn();
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    act(() => createRoot(host).render(<HarnessStop onStop={onStop} />));
+
+    const editor = document.createElement('div');
+    editor.className = 'cm-editor';
+    const content = document.createElement('div');
+    editor.appendChild(content);
+    document.body.appendChild(editor);
+
+    act(() => {
+      content.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(onStop, '에디터 안 Escape가 채점을 멈춤').not.toHaveBeenCalled();
+
+    act(() => {
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(onStop, '에디터 바깥 Escape가 채점을 멈추지 않음').toHaveBeenCalledTimes(1);
   });
 });

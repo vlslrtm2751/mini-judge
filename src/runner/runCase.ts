@@ -1,5 +1,6 @@
-import type { CaseResult, CompareMode, ErrorInfo, Json, LogEntry } from '@/domain/types';
+import type { CaseResult, CompareMode, Fatal, Json, LogEntry } from '@/domain/types';
 import type { RunCaseMessage, WorkerMessage } from './protocol';
+import { createWorker } from './createWorker';
 
 interface RunCaseOptions {
   index: number;
@@ -13,15 +14,15 @@ interface RunCaseOptions {
   onLog: (entry: LogEntry) => void;
 }
 
-export async function runCase(options: RunCaseOptions): Promise<{ result?: CaseResult; fatal?: { reason: 'syntax' | 'top-level-error' | 'no-solution' | 'top-level-timeout'; error?: ErrorInfo } }> {
+export async function runCase(options: RunCaseOptions): Promise<{ result?: CaseResult; fatal?: Fatal }> {
   return new Promise((resolve) => {
-    const worker = new Worker(new URL('./worker.ts', import.meta.url));
+    const worker = createWorker();
     let started = false;
     let timeoutId: number | undefined;
     let guardId: number | undefined;
     const logs: LogEntry[] = [];
 
-    const done = (payload: { result?: CaseResult; fatal?: { reason: 'syntax' | 'top-level-error' | 'no-solution' | 'top-level-timeout'; error?: ErrorInfo } }) => {
+    const done = (payload: { result?: CaseResult; fatal?: Fatal }) => {
       worker.terminate();
       if (timeoutId) clearTimeout(timeoutId);
       if (guardId) clearTimeout(guardId);
@@ -29,6 +30,19 @@ export async function runCase(options: RunCaseOptions): Promise<{ result?: CaseR
     };
 
     options.signal.addEventListener('abort', () => done({}), { once: true });
+
+    // 워커 스크립트 자체를 못 불러오면 어떤 메시지도 오지 않는다. 이걸 듣지
+    // 않으면 아래 가드 타이머가 timeLimitMs + 4000 뒤에 돌아 "시간 초과"로
+    // 보고되고, 사용자는 자기 코드가 느리다고 오해한다.
+    worker.onerror = (event: unknown) => {
+      const message = (event as { message?: string } | null)?.message;
+      done({
+        fatal: {
+          reason: 'worker-failed',
+          error: { name: 'WorkerError', message: message || '채점기를 불러오지 못했습니다', frames: [] },
+        },
+      });
+    };
 
     worker.onmessage = ({ data }: MessageEvent<WorkerMessage>) => {
       if (data.type === 'log') {

@@ -49,6 +49,12 @@
   margin-right: 8px;
 }
 
+.meta .id {
+  font-family: var(--f-code);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
 .md p,
 .md li {
   font-size: 15px;

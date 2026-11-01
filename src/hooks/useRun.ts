@@ -44,7 +44,10 @@ export function useRun(problem: Problem) {
             runStore.print(formatCaseTerminal(event.result).map((text) => ({ text })));
           }
           if (event.type === 'fatal') {
-            setOutputTab('terminal');
+            // 원인을 설명하는 FatalError는 결과 탭에 있다. 터미널로 보내면
+            // 케이스가 하나도 안 돌아 아무것도 찍히지 않은 빈 탭을 보여주면서
+            // 정작 설명을 숨긴다.
+            setOutputTab('results');
           }
         },
       });

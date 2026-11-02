@@ -31,6 +31,9 @@ test('네 가지 채점 상태가 마크와 칩으로 서로 구분된다', asyn
       li.dataset.status = status;
       const m = document.createElement('span');
       m.className = mark.className;
+      // 마크 모양은 이제 .case[data-status]가 아니라 마크 자신의 data-mark로
+      // 걸린다(src/ui/Mark). 칩은 여전히 조상의 data-status를 본다.
+      m.dataset.mark = status;
       const c = document.createElement('span');
       c.className = chip.className;
       li.append(m, c);

@@ -1,4 +1,5 @@
 import type { CaseResult, CaseStatus } from '@/domain/types';
+import { Mark } from '@/ui/Mark';
 import styles from './output.module.css';
 
 function label(status: CaseStatus): string {
@@ -29,7 +30,7 @@ export function CaseItem({
   return (
     <li className={styles.case} data-status={item.status}>
       <div className={styles.caseHead}>
-        <span className={styles.mark} aria-hidden="true" />
+        <Mark kind={item.status} />
         <span className={styles.caseName}>#{index + 1}</span>
         <span className={styles.chip}>{label(item.status)}</span>
         {item.hidden ? <span className={styles.hiddenTag}>숨김</span> : null}

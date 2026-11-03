@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import type { ProblemMeta } from '@/domain/types';
+import { useSubmitStore } from '@/stores/submitStore';
+import { useDraftStore } from '@/stores/draftStore';
 import { ProblemListPage, sortByLevel } from '@/features/problems/ProblemListPage';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -62,6 +64,12 @@ describe('sortByLevel', () => {
 });
 
 describe('ProblemListPage', () => {
+  // 스토어는 모듈 수준이라 한 파일 안의 테스트끼리 상태가 샌다.
+  beforeEach(() => {
+    useSubmitStore.setState({ records: {} });
+    useDraftStore.setState({ drafts: {} });
+  });
+
   // ProblemMeta.tags는 선택 필드다. 현재 세 문제가 모두 태그를 갖고 있어
   // e2e로는 이 경우에 닿지 않는다.
   it('tags가 없는 문제도 행으로 렌더하고 제목을 보여준다', async () => {
@@ -92,5 +100,32 @@ describe('ProblemListPage', () => {
     );
     expect(marks).toEqual(['none', 'none']);
     expect(host.textContent).toContain('2문제 중 0개 통과');
+  });
+
+  // ProblemStatus와 MarkKind는 이름이 다르고, 그 변환표가 목록 안에 있다.
+  // e2e는 제출해서 통과한 경우(solved→pass)밖에 보지 못하고 untried→none은
+  // 위 테스트가 덮는다 — failed와 wip은 어디서도 검증되지 않아, 변환표에
+  // 오타가 나도 아무 테스트가 깨지지 않는다. 네 갈래를 한 번에 본다.
+  it('네 가지 상태가 각자의 마크로 바뀐다', async () => {
+    useSubmitStore.setState({
+      records: {
+        solved: { passed: 2, total: 2, at: 1, solvedAt: 1 },
+        failed: { passed: 1, total: 2, at: 1 },
+      },
+    });
+    useDraftStore.setState({ drafts: { wip: 'function solution() {}' } });
+
+    const host = await renderList(
+      ['solved', 'failed', 'wip', 'untried'].map((id) => meta({ id })),
+    );
+
+    const marks = Object.fromEntries(
+      Array.from(host.querySelectorAll('a[data-status]')).map((row) => [
+        row.getAttribute('href')?.split('/').pop(),
+        row.querySelector('[data-mark]')?.getAttribute('data-mark'),
+      ]),
+    );
+    expect(marks).toEqual({ solved: 'pass', failed: 'fail', wip: 'wip', untried: 'none' });
+    expect(host.textContent).toContain('4문제 중 1개 통과');
   });
 });

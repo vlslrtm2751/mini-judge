@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('문법 오류로 실행이 안 되면 그 설명이 화면에 보인다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.locator('.cm-content').fill('function solution(numbers) { return [1,2 }');
 
   await page.getByRole('button', { name: '테스트 실행' }).click();
@@ -12,7 +12,7 @@ test('문법 오류로 실행이 안 되면 그 설명이 화면에 보인다', 
 });
 
 test('치명적 오류 뒤에도 결과 탭이 선택된 상태로 남는다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.locator('.cm-content').fill('const x = (');
 
   await page.getByRole('button', { name: '테스트 실행' }).click();

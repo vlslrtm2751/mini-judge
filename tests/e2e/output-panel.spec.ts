@@ -10,7 +10,7 @@ const outBody = (page: import('@playwright/test').Page) =>
 const outPane = (page: import('@playwright/test').Page) => page.locator('[data-panel]').last();
 
 test('네 가지 채점 상태가 마크와 칩으로 서로 구분된다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.locator('.cm-content').fill(solution('return numbers[0] === 1 ? 12 : 0;'));
   await page.getByRole('button', { name: '테스트 실행' }).click();
   await expect(page.getByText('1/3').first()).toBeVisible();
@@ -71,7 +71,7 @@ test('네 가지 채점 상태가 마크와 칩으로 서로 구분된다', asyn
 });
 
 test('긴 터미널 한 줄을 터미널 스크롤러가 떠안는다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.locator('.cm-content').fill(solution("console.log('x'.repeat(5000)); return 0;"));
   await page.getByRole('button', { name: '테스트 실행' }).click();
   // 채점이 끝나기를 기다린다. 로그가 도착하기 전에 재면 넘칠 것이 없어
@@ -97,7 +97,7 @@ test('긴 터미널 한 줄을 터미널 스크롤러가 떠안는다', async ({
 });
 
 test('제출 결과를 출력 패널 안에서 스크롤해 마지막 케이스까지 볼 수 있다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.getByRole('button', { name: '제출' }).click();
   await expect(page.getByText('6/6').first()).toBeVisible();
 

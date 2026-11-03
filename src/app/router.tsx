@@ -1,7 +1,8 @@
-import { createHashRouter, Navigate, redirect } from 'react-router-dom';
+import { createHashRouter, Navigate } from 'react-router-dom';
 import { repository } from './services';
 import { AppShell } from './AppShell';
 import { IdePage } from '@/features/workspace/IdePage';
+import { ProblemListPage } from '@/features/problems/ProblemListPage';
 import { ProblemNotFoundError } from '@/problems/localRepository';
 
 export const router = createHashRouter([
@@ -11,20 +12,16 @@ export const router = createHashRouter([
     children: [
       {
         path: '/',
-        loader: async () => {
-          const list = await repository.list();
-          if (!list.length) throw new Error('문제가 없습니다');
-          throw redirect(`/problems/${list[0].id}`);
-        },
+        loader: () => repository.list(),
+        element: <ProblemListPage />,
       },
       {
         path: '/problems/:id',
         loader: async ({ params }) => {
-          const list = await repository.list();
           const id = params.id;
           if (!id) throw new ProblemNotFoundError('');
           const problem = await repository.get(id);
-          return { problem, list };
+          return { problem };
         },
         element: <IdePage />,
       },

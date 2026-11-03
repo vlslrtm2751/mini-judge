@@ -5,14 +5,14 @@ import { expect, test } from '@playwright/test';
 test.use({ colorScheme: 'light' });
 
 test('OS가 라이트를 선호해도 다크 팔레트로 렌더된다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   // --paper #0d1218
   expect(bg).toBe('rgb(13, 18, 24)');
 });
 
 test('디자인 토큰이 다크 값으로 정의돼 있다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   const tokens = await page.evaluate(() => {
     const s = getComputedStyle(document.documentElement);
     const read = (name: string) => s.getPropertyValue(name).trim();
@@ -22,7 +22,7 @@ test('디자인 토큰이 다크 값으로 정의돼 있다', async ({ page }) =
 });
 
 test('패널이 카드로 렌더된다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   // CSS Modules가 클래스 이름을 해시하므로 부분 일치로 찾는다. Panel의
   // className은 중첩된 div에 적용되므로 [data-panel] 자신이 아닐 수 있다.
   const card = page.locator('[class*="pane"]').first();
@@ -37,7 +37,7 @@ test('패널이 카드로 렌더된다', async ({ page }) => {
 });
 
 test('에디터의 모든 구문 토큰이 배경과 구분된다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.locator('.cm-content').waitFor();
 
   const result = await page.evaluate(() => {
@@ -74,7 +74,7 @@ test('에디터의 모든 구문 토큰이 배경과 구분된다', async ({ pag
 });
 
 test('읽어야 하는 텍스트가 실제 렌더된 배경 위에서 AA 대비를 넘는다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.locator('.cm-content').fill(`// 주석도 읽혀야 한다
 function solution(n) { return n; }`);
   await page.getByRole('button', { name: '제출' }).click();
@@ -148,9 +148,9 @@ function solution(n) { return n; }`);
 });
 
 test('Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이 보인다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   // 앱이 렌더되기 전에 Tab을 누르면 포커스할 대상이 없어 body에 머문다.
-  await page.locator('select').waitFor();
+  await page.locator('.cm-content').waitFor();
 
   const probe = () =>
     page.evaluate(() => {
@@ -191,7 +191,7 @@ test('Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이 �
 });
 
 test('클래스 이름과 정규식 리터럴에도 색이 입혀진다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.locator('.cm-content').fill('const m = new Map(); const re = /[0-9]+/g; class Foo {}');
 
   // CM6는 스타일이 걸린 범위에만 span을 만든다. 색이 없는 토큰은 아예 span으로
@@ -206,7 +206,7 @@ test('클래스 이름과 정규식 리터럴에도 색이 입혀진다', async 
 });
 
 test('버튼 세 variant가 서로 다른 위계로 보이고 disabled가 드러난다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.getByRole('button', { name: '제출' }).waitFor();
 
   const styles = await page.evaluate(() => {
@@ -247,7 +247,7 @@ test('버튼 세 variant가 서로 다른 위계로 보이고 disabled가 드러
 });
 
 test('채점이 끝나면 라이브 리전이 결과를 알린다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
 
   // 라이브 리전은 내용이 바뀌기 전부터 떠 있어야 읽힌다.
   const status = page.locator('[role="status"]');

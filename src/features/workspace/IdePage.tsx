@@ -1,5 +1,5 @@
 import { useLoaderData } from 'react-router-dom';
-import type { Problem, ProblemMeta } from '@/domain/types';
+import type { Problem } from '@/domain/types';
 import { useIsPhone } from '@/hooks/useIsPhone';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useRun } from '@/hooks/useRun';
@@ -18,11 +18,10 @@ import { useUiStore } from '@/stores/uiStore';
 
 interface LoaderData {
   problem: Problem;
-  list: ProblemMeta[];
 }
 
 export function IdePage() {
-  const { problem, list } = useLoaderData() as LoaderData;
+  const { problem } = useLoaderData() as LoaderData;
   const isPhone = useIsPhone();
   const runState = useRunStore();
   const mobileView = useUiStore((s) => s.mobileView);
@@ -64,7 +63,9 @@ export function IdePage() {
 
   const content = (
     <>
-      <ProblemPicker list={list} selected={problem.meta.id} disabled={runState.phase === 'running'} />
+      {/* 문제를 고르는 일은 이제 목록 화면이 한다. Task 6에서 이 선택기가
+          "← 목록" 링크로 바뀌면서 list prop 자체가 사라진다. */}
+      <ProblemPicker list={[]} selected={problem.meta.id} disabled={runState.phase === 'running'} />
       {isPhone ? (
         <div className={styles.mobileStack}>
           <MobileTabs />

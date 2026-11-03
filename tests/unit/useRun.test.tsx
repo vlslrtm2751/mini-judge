@@ -107,6 +107,11 @@ describe('useRun - 제출 결과 기록', () => {
     expect(recordSpy).toHaveBeenCalledWith(problem.meta.id, 1, 3);
   });
 
+  it('전부 실패한 제출도(중지·치명적 오류 없이) record(id, 0, total)로 불린다 — passed>0 같은 숨은 조건이 있으면 이 케이스가 잡는다', async () => {
+    const problem = await runWith('submit', { passed: 0, total: 3 });
+    expect(recordSpy).toHaveBeenCalledWith(problem.meta.id, 0, 3);
+  });
+
   it("'test' 실행은 기록하지 않는다", async () => {
     await runWith('test', { passed: 3, total: 3 });
     expect(recordSpy).not.toHaveBeenCalled();

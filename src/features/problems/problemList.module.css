@@ -4,8 +4,16 @@
    grid-template-columns를 공유해 열을 맞춘다. */
 
 /* workspace의 .page와 같은 불변식: 뷰포트를 정확히 채우고 문서는 스크롤되지
-   않는다. 넘침은 안쪽 .scroller가 떠안는다. */
+   않는다. 넘침은 안쪽 .scroller가 떠안는다.
+   position:relative도 workspace와 같은 이유로 필수다 — 행마다 있는 전역
+   .sr-only(상태 글자)가 position:absolute인데, 포지션된 조상이 없으면
+   컨테이닝 블록이 초기 컨테이닝 블록이 되어 이 overflow:hidden이 그것을
+   자르지 못하고(절대 위치 요소는 컨테이닝 블록 사슬에 있는 조상만이 자른다)
+   목록이 길어질 때 문서 전체가 스크롤된다. 전에는 행마다 .cellMark에
+   position:relative를 줬는데, .page 하나를 포지션하면 모든 행이 한 번에
+   해결되고 다른 sr-only 자리(OutputPanel 등)에도 같은 방어가 미친다. */
 .page {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -145,14 +153,7 @@
   outline-offset: -2px;
 }
 
-/* position:relative는 장식이 아니라 필수다. 안에 든 전역 .sr-only가
-   position:absolute라서, 포지션된 조상이 없으면 컨테이닝 블록이 초기
-   컨테이닝 블록이 된다 — 그러면 .page의 overflow:hidden이 그것을 자르지
-   못하고(절대 위치 요소는 컨테이닝 블록 사슬에 있는 조상만이 자른다)
-   목록이 길어질 때 문서 전체가 스크롤된다. 눈에 보이지 않는 요소라
-   스크롤되는 것 말고는 증상이 없다. */
 .cellMark {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;

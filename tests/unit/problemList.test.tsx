@@ -40,14 +40,23 @@ describe('sortByLevel', () => {
     expect(sortByLevel(input).map((m) => m.id)).toEqual(['b', 'c', 'a']);
   });
 
+  // id의 알파벳 순서가 order의 순서와 반대여야 한다 — 'aaa'가 'bbb'보다
+  // 앞서는 id만으로도 우연히 같은 결과가 나오면 order 비교가 실제로 쓰이는지
+  // 이 테스트로는 알 수 없다(리뷰에서 실제로 걸린 사례: order 항을 지운
+  // `(a,b) => a.level - b.level || a.id.localeCompare(b.id)`로도 78/78이
+  // 그대로 녹색이었다).
   it('난이도가 같으면 order 순이다', () => {
-    const input = [meta({ id: 'late', level: 1, order: 9 }), meta({ id: 'early', level: 1, order: 2 })];
-    expect(sortByLevel(input).map((m) => m.id)).toEqual(['early', 'late']);
+    const input = [meta({ id: 'aaa', level: 1, order: 9 }), meta({ id: 'bbb', level: 1, order: 2 })];
+    expect(sortByLevel(input).map((m) => m.id)).toEqual(['bbb', 'aaa']);
   });
 
+  // 마찬가지로 id 순서가 '(order ?? 9999)'가 매기는 순서와 반대여야 한다.
+  // order가 있는 쪽의 id를 알파벳상 뒤로 둔다 — 'aaa'(order 없음)가 'zzz'
+  // (order 1)보다 앞에 와야 한다면, id만 보거나 없는 order를 9999 대신 0으로
+  // 취급해도 같은 답이 나와 이 테스트가 아무것도 지키지 못한다.
   it('order가 없는 메타는 order가 있는 메타 뒤로 간다', () => {
-    const input = [meta({ id: 'none', level: 0 }), meta({ id: 'first', level: 0, order: 1 })];
-    expect(sortByLevel(input).map((m) => m.id)).toEqual(['first', 'none']);
+    const input = [meta({ id: 'aaa', level: 0 }), meta({ id: 'zzz', level: 0, order: 1 })];
+    expect(sortByLevel(input).map((m) => m.id)).toEqual(['zzz', 'aaa']);
   });
 
   it('난이도와 order가 모두 같으면 id 순이다', () => {

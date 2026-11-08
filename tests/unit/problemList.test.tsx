@@ -5,14 +5,15 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import type { ProblemMeta } from '@/domain/types';
 import { useSubmitStore } from '@/stores/submitStore';
 import { useDraftStore } from '@/stores/draftStore';
-import { ProblemListPage, sortByLevel } from '@/features/problems/ProblemListPage';
+import { ProblemListPage, sortProblems } from '@/features/problems/ProblemListPage';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-/** 라우트 element로서의 목록을 그린다 — 로더가 돌려주는 메타를 테스트가 정한다. */
-async function renderList(metas: ProblemMeta[]): Promise<HTMLElement> {
+/** 라우트 element로서의 목록을 그린다 — 로더가 돌려주는 메타를 테스트가 정한다.
+ *  path로 쿼리 문자열을 실어 보내면 useListQuery가 그걸 읽는다(기본은 '/'). */
+async function renderList(metas: ProblemMeta[], path = '/'): Promise<HTMLElement> {
   const router = createMemoryRouter([{ path: '/', element: <ProblemListPage />, loader: () => metas }], {
-    initialEntries: ['/'],
+    initialEntries: [path],
   });
   const host = document.createElement('div');
   document.body.appendChild(host);
@@ -31,13 +32,24 @@ const meta = (over: Partial<ProblemMeta> & { id: string }): ProblemMeta => ({
   ...over,
 });
 
-describe('sortByLevel', () => {
+// 실제 세 문제(001/002/003). 손으로 계산한 값이 아니라 node로 직접 돌려
+// 확인한 값이다(task-5a-brief.md의 표와 동일) — meta.json 세 개를 직접 읽어
+// level·order가 표와 같은지도 확인했다. sortProblems 유닛 테스트와
+// ProblemListPage 통합 테스트가 함께 쓴다.
+const REAL_METAS = [
+  meta({ id: '001-even-sum', title: '짝수만 더하기', level: 0, order: 1 }),
+  meta({ id: '002-string-repeat', title: '문자열 n번 이어붙이기', level: 0, order: 2 }),
+  meta({ id: '003-unique-sort', title: '중복 제거 후 정렬', level: 1, order: 3 }),
+];
+const shortId = (m: ProblemMeta) => m.id.slice(0, 3);
+
+describe('sortProblems', () => {
   // 저장소가 돌려주는 순서(order 순)와 난이도 순서가 어긋나는 픽스처여야
   // 정렬 규칙이 실제로 검증된다. 현재 세 문제는 두 순서가 같아 어떤 정렬이든
   // — 정렬을 아예 안 해도 — 같은 결과가 나온다.
   it('난이도 오름차순으로 정렬한다', () => {
     const input = [meta({ id: 'c', level: 0, order: 3 }), meta({ id: 'a', level: 2, order: 1 }), meta({ id: 'b', level: 0, order: 2 })];
-    expect(sortByLevel(input).map((m) => m.id)).toEqual(['b', 'c', 'a']);
+    expect(sortProblems(input, 'level', 'asc').map((m) => m.id)).toEqual(['b', 'c', 'a']);
   });
 
   // id의 알파벳 순서가 order의 순서와 반대여야 한다 — 'aaa'가 'bbb'보다
@@ -47,7 +59,7 @@ describe('sortByLevel', () => {
   // 그대로 녹색이었다).
   it('난이도가 같으면 order 순이다', () => {
     const input = [meta({ id: 'aaa', level: 1, order: 9 }), meta({ id: 'bbb', level: 1, order: 2 })];
-    expect(sortByLevel(input).map((m) => m.id)).toEqual(['bbb', 'aaa']);
+    expect(sortProblems(input, 'level', 'asc').map((m) => m.id)).toEqual(['bbb', 'aaa']);
   });
 
   // 마찬가지로 id 순서가 '(order ?? 9999)'가 매기는 순서와 반대여야 한다.
@@ -56,19 +68,47 @@ describe('sortByLevel', () => {
   // 취급해도 같은 답이 나와 이 테스트가 아무것도 지키지 못한다.
   it('order가 없는 메타는 order가 있는 메타 뒤로 간다', () => {
     const input = [meta({ id: 'aaa', level: 0 }), meta({ id: 'zzz', level: 0, order: 1 })];
-    expect(sortByLevel(input).map((m) => m.id)).toEqual(['zzz', 'aaa']);
+    expect(sortProblems(input, 'level', 'asc').map((m) => m.id)).toEqual(['zzz', 'aaa']);
   });
 
   it('난이도와 order가 모두 같으면 id 순이다', () => {
     const input = [meta({ id: 'zebra', level: 1, order: 5 }), meta({ id: 'alpha', level: 1, order: 5 })];
-    expect(sortByLevel(input).map((m) => m.id)).toEqual(['alpha', 'zebra']);
+    expect(sortProblems(input, 'level', 'asc').map((m) => m.id)).toEqual(['alpha', 'zebra']);
   });
 
   it('입력을 변형하지 않고 새 배열을 돌려준다', () => {
     const input = [meta({ id: 'b', level: 1 }), meta({ id: 'a', level: 0 })];
-    const out = sortByLevel(input);
+    const out = sortProblems(input, 'level', 'asc');
     expect(out).not.toBe(input);
     expect(input.map((m) => m.id)).toEqual(['b', 'a']);
+  });
+
+  // 네 조합을 REAL_METAS(위 모듈 스코프)로 고정한다.
+  it('실제 데이터: level asc → 001, 002, 003', () => {
+    expect(sortProblems(REAL_METAS, 'level', 'asc').map(shortId)).toEqual(['001', '002', '003']);
+  });
+
+  // 결정: dir은 1차 키만 뒤집고 타이브레이커(order)는 오름차순을 유지한다.
+  // 비교자 전체를 음수화하는 구현이었다면 003, 002, 001이 나온다 — 이 값과
+  // 다음 테스트(타이브레이커 전용)가 그 구현을 함께 떨어뜨린다.
+  it('실제 데이터: level desc → 003, 001, 002 (비교자 전체 음수화라면 003, 002, 001)', () => {
+    expect(sortProblems(REAL_METAS, 'level', 'desc').map(shortId)).toEqual(['003', '001', '002']);
+  });
+
+  it('실제 데이터: title asc → 002, 003, 001', () => {
+    expect(sortProblems(REAL_METAS, 'title', 'asc').map(shortId)).toEqual(['002', '003', '001']);
+  });
+
+  it('실제 데이터: title desc → 001, 003, 002', () => {
+    expect(sortProblems(REAL_METAS, 'title', 'desc').map(shortId)).toEqual(['001', '003', '002']);
+  });
+
+  // 위 level desc 테스트 하나만으로는 "타이브레이커가 유지됐다"와 "어차피
+  // 셋 다 서로 다른 order라 우연히 맞았다"를 구분하지 못한다. 같은 레벨
+  // 두 문제를 order·id가 어긋나게 만들어 직접 본다(Task 4의 교훈).
+  it('같은 난이도 두 문제는 level desc에서도 order 오름차순을 유지한다', () => {
+    const input = [meta({ id: 'zzz', level: 5, order: 1 }), meta({ id: 'aaa', level: 5, order: 9 })];
+    expect(sortProblems(input, 'level', 'desc').map((m) => m.id)).toEqual(['zzz', 'aaa']);
   });
 });
 
@@ -136,5 +176,64 @@ describe('ProblemListPage', () => {
     );
     expect(marks).toEqual({ solved: 'pass', failed: 'fail', wip: 'wip', untried: 'none' });
     expect(host.textContent).toContain('4문제 중 1개 통과');
+  });
+
+  // sortProblems 유닛 테스트는 함수 자체만 본다 — ProblemListPage가 URL의
+  // sort·dir을 실제로 그 함수에 넘기는지는 별개다(바로 이 배선이 Task 4에서
+  // order 항을 빼먹어도 안 들키게 한 구멍과 같은 종류다). URL을 직접 쿼리로
+  // 채워 렌더해 확인한다.
+  it('URL의 sort·dir을 읽어 그 순서로 렌더한다', async () => {
+    const host = await renderList(REAL_METAS, '/?sort=title&dir=desc');
+    expect(renderedTitles(host).map((t) => REAL_METAS.find((m) => m.title === t)?.id.slice(0, 3))).toEqual([
+      '001',
+      '003',
+      '002',
+    ]);
+  });
+
+  // Task 4가 .head를 aria-hidden으로 둔 이유(눈으로만 읽는 열 이름)는
+  // 정렬 버튼이 생기면서 깨진다 — 포커스 가능한 버튼이 스크린리더에서는
+  // 사라지는데 탭으로는 닿는 상태가 axe 위반이자 실제 버그다. 그 수정을
+  // 테스트로 고정한다.
+  it('.head는 더 이상 aria-hidden이 아니고, 정렬 버튼은 각자 접근 가능한 이름을 갖는다', async () => {
+    const host = await renderList(REAL_METAS);
+    const head = host.querySelector('[class*="head"]');
+    expect(head?.getAttribute('aria-hidden')).toBeNull();
+
+    const buttons = Array.from(head?.querySelectorAll('button') ?? []);
+    expect(buttons).toHaveLength(2);
+    for (const button of buttons) {
+      expect((button.textContent ?? '').trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  // 제목 헤더를 누르면 정렬이 바뀌고(먼저 title/asc로), 같은 헤더를 다시
+  // 누르면 방향이 뒤집힌다(title/desc). 클릭 한 번으로 열이 바뀔 때는 asc로
+  // 리셋되고, 같은 열을 다시 누를 때만 토글된다는 두 규칙을 함께 본다.
+  it('제목 헤더를 누르면 제목 정렬로 바뀌고, 다시 누르면 방향이 뒤집힌다', async () => {
+    const host = await renderList(REAL_METAS);
+    const titleButton = Array.from(host.querySelectorAll('[class*="head"] button')).find((b) =>
+      (b.textContent ?? '').includes('제목'),
+    ) as HTMLButtonElement;
+    expect(titleButton).toBeDefined();
+
+    await act(async () => {
+      titleButton.click();
+    });
+    expect(renderedTitles(host).map((t) => REAL_METAS.find((m) => m.title === t)?.id.slice(0, 3))).toEqual([
+      '002',
+      '003',
+      '001',
+    ]);
+    expect(titleButton.getAttribute('aria-pressed')).toBe('true');
+
+    await act(async () => {
+      titleButton.click();
+    });
+    expect(renderedTitles(host).map((t) => REAL_METAS.find((m) => m.title === t)?.id.slice(0, 3))).toEqual([
+      '001',
+      '003',
+      '002',
+    ]);
   });
 });

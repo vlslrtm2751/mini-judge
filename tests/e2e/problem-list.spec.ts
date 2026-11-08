@@ -76,6 +76,46 @@ test('제출해서 통과하면 목록의 마크와 진척도가 바뀐다', asy
   await expect(passed).toHaveAttribute('href', /001-even-sum$/);
 });
 
+// 제목·난이도 열 머리는 정렬 버튼이다. 같은 열을 다시 누르면 방향이
+// 뒤집히고, 새 정렬은 URL 쿼리에 쌓인다(토글 두 번으로 왕복까지 본다).
+test('제목 열 머리를 누르면 제목 기준으로 바뀌고, 다시 누르면 방향이 뒤집힌다', async ({ page }) => {
+  await page.goto('#/');
+  const titleHeader = page.getByRole('button', { name: '제목' });
+
+  await titleHeader.click();
+  await expect(rows(page).nth(0)).toContainText('문자열 n번 이어붙이기');
+  await expect(rows(page).nth(1)).toContainText('중복 제거 후 정렬');
+  await expect(rows(page).nth(2)).toContainText('짝수만 더하기');
+  await expect(page).toHaveURL(/#\/\?sort=title$/);
+
+  await titleHeader.click();
+  await expect(rows(page).nth(0)).toContainText('짝수만 더하기');
+  await expect(rows(page).nth(1)).toContainText('중복 제거 후 정렬');
+  await expect(rows(page).nth(2)).toContainText('문자열 n번 이어붙이기');
+  await expect(page).toHaveURL(/#\/\?sort=title&dir=desc$/);
+});
+
+// URL이 유일한 출처다 — 클릭을 거치지 않고 쿼리로 직접 들어가도 같은
+// 순서로 보여야 한다(새로고침·공유 링크가 기대는 바로 그 동작).
+test('정렬 쿼리로 직접 들어가면 그 순서로 보인다', async ({ page }) => {
+  await page.goto('#/?sort=title&dir=desc');
+
+  await expect(rows(page).nth(0)).toContainText('짝수만 더하기');
+  await expect(rows(page).nth(1)).toContainText('중복 제거 후 정렬');
+  await expect(rows(page).nth(2)).toContainText('문자열 n번 이어붙이기');
+});
+
+// 알 수 없는 값은 던지거나 목록을 비우지 않고 기본 정렬(난이도 오름차순)로
+// 조용히 떨어진다.
+test('알 수 없는 정렬 쿼리로 들어가면 기본 정렬로 떨어지고 목록이 보인다', async ({ page }) => {
+  await page.goto('#/?sort=nope&dir=sideways');
+
+  await expect(rows(page)).toHaveCount(3);
+  await expect(rows(page).nth(0)).toContainText('짝수만 더하기');
+  await expect(rows(page).nth(1)).toContainText('문자열 n번 이어붙이기');
+  await expect(rows(page).nth(2)).toContainText('중복 제거 후 정렬');
+});
+
 test('목록이 길어지면 문서가 아니라 목록이 스크롤된다', async ({ page }) => {
   await page.goto('#/');
   await rows(page).first().waitFor();

@@ -12,7 +12,7 @@ const rows = (page: import('@playwright/test').Page) => page.locator('a[data-sta
 const scroller = (page: import('@playwright/test').Page) => page.locator('[class*="scroller"]').first();
 
 test('/를 열면 문제 세 개가 행으로 보인다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/');
 
   await expect(rows(page)).toHaveCount(3);
   await expect(rows(page).nth(0)).toContainText('짝수만 더하기');
@@ -25,12 +25,12 @@ test('/를 열면 문제 세 개가 행으로 보인다', async ({ page }) => {
 });
 
 test('상단에 진척도 한 줄이 보인다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/');
   await expect(page.getByText('3문제 중 0개 통과')).toBeVisible();
 });
 
 test('행을 클릭하면 그 문제의 작업 화면으로 간다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/');
   await rows(page).first().click();
 
   await expect(page).toHaveURL(/#\/problems\/001-even-sum$/);
@@ -38,9 +38,15 @@ test('행을 클릭하면 그 문제의 작업 화면으로 간다', async ({ pa
 });
 
 test('위아래 화살표로 행을 옮기고 Enter로 문제를 연다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/');
   const list = rows(page);
   await list.first().focus();
+
+  // 첫 행에는 "이전" 행이 없다 — preventDefault 없이 조용히 빠져나가고
+  // (ProblemListPage.tsx:61-63) 포커스가 그대로 남아야 한다. 끝 행에서는
+  // 목록이 평소처럼 스크롤되는 것이 의도된 동작이다.
+  await page.keyboard.press('ArrowUp');
+  await expect(list.nth(0)).toBeFocused();
 
   await page.keyboard.press('ArrowDown');
   await expect(list.nth(1)).toBeFocused();
@@ -62,7 +68,7 @@ test('제출해서 통과하면 목록의 마크와 진척도가 바뀐다', asy
   await page.getByRole('button', { name: '제출' }).click();
   await expect(page.getByText('6/6').first()).toBeVisible();
 
-  await page.goto('/');
+  await page.goto('#/');
 
   await expect(page.getByText('3문제 중 1개 통과')).toBeVisible();
   const passed = rows(page).filter({ has: page.locator('[data-mark="pass"]') });
@@ -71,7 +77,7 @@ test('제출해서 통과하면 목록의 마크와 진척도가 바뀐다', asy
 });
 
 test('목록이 길어지면 문서가 아니라 목록이 스크롤된다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/');
   await rows(page).first().waitFor();
 
   // 문제가 세 개뿐이라 자연히는 넘치지 않는다. 행을 복제해 실제로 넘침을 만든

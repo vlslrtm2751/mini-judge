@@ -49,6 +49,14 @@ describe('parseListQuery', () => {
     const q = parseListQuery(new URLSearchParams('level=abc&sort=nope&dir=sideways&status=bogus'));
     expect(q).toEqual(DEFAULTS);
   });
+
+  // tag는 q와 달리 빈 문자열에 의미가 없다("이 태그로 거른다"의 "이 태그"가
+  // 없으면 필터 자체가 없는 것과 같다). 5b가 붙일 <select>의 "필터 없음"
+  // 옵션이 value=''를 쓰면 그 값이 그대로 여기로 들어온다 — null로 접지
+  // 않으면 toSearchParams가 매번 `tag=`를 URL에 재발급한다(리뷰 Minor 2).
+  it('tag가 빈 문자열이면 null로 떨어진다', () => {
+    expect(parseListQuery(new URLSearchParams('tag=')).tag).toBeNull();
+  });
 });
 
 describe('toSearchParams', () => {
@@ -76,5 +84,13 @@ describe('toSearchParams', () => {
 
   it('왕복: 기본값도 그대로 돌아온다', () => {
     expect(parseListQuery(toSearchParams(DEFAULTS))).toEqual(DEFAULTS);
+  });
+
+  // parseListQuery는 이제 tag:''를 만들지 않지만, toSearchParams는 그 타입
+  // (string | null)을 그대로 받으므로 누군가 tag:''를 직접 넘기는 경우까지
+  // 방어한다 — level의 '!== null'과 달리 tag는 truthy 검사라 ''도 걸러진다.
+  it('tag가 빈 문자열이면 URL에 남기지 않는다', () => {
+    const params = toSearchParams({ ...DEFAULTS, tag: '' });
+    expect(params.get('tag')).toBeNull();
   });
 });

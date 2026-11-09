@@ -78,21 +78,55 @@ test('제출해서 통과하면 목록의 마크와 진척도가 바뀐다', asy
 
 // 제목·난이도 열 머리는 정렬 버튼이다. 같은 열을 다시 누르면 방향이
 // 뒤집히고, 새 정렬은 URL 쿼리에 쌓인다(토글 두 번으로 왕복까지 본다).
+// name을 exact로 매치한다 — substring 매치는 ', 오름차순 정렬 중' 접미사가
+// 빠져도(리뷰 Important 1의 변형 중 하나) 똑같이 찾아내 그 결함을 놓친다.
 test('제목 열 머리를 누르면 제목 기준으로 바뀌고, 다시 누르면 방향이 뒤집힌다', async ({ page }) => {
   await page.goto('#/');
-  const titleHeader = page.getByRole('button', { name: '제목' });
 
-  await titleHeader.click();
+  await page.getByRole('button', { name: '제목', exact: true }).click();
   await expect(rows(page).nth(0)).toContainText('문자열 n번 이어붙이기');
   await expect(rows(page).nth(1)).toContainText('중복 제거 후 정렬');
   await expect(rows(page).nth(2)).toContainText('짝수만 더하기');
   await expect(page).toHaveURL(/#\/\?sort=title$/);
 
-  await titleHeader.click();
+  await page.getByRole('button', { name: '제목, 오름차순 정렬 중', exact: true }).click();
   await expect(rows(page).nth(0)).toContainText('짝수만 더하기');
   await expect(rows(page).nth(1)).toContainText('중복 제거 후 정렬');
   await expect(rows(page).nth(2)).toContainText('문자열 n번 이어붙이기');
   await expect(page).toHaveURL(/#\/\?sort=title&dir=desc$/);
+});
+
+// theme.spec.ts의 "Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이
+// 보인다"는 #/problems/001-even-sum(IDE)만 돌고 목록 화면(#/)에는 가지
+// 않는다 — 정렬 버튼은 그 테스트에서 한 번도 포커스되지 않는다(task-5a
+// 보고서 3-B가 처음 그렇다고 적었던 것은 틀렸다 — 아래에서 실제 브라우저로
+// 직접 확인한다, 리뷰 Important 2).
+test('정렬 버튼도 Tab으로 도달하면 포커스 링이 보인다', async ({ page }) => {
+  await page.goto('#/');
+  await rows(page).first().waitFor();
+
+  const probe = () =>
+    page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || el.tagName !== 'BUTTON') return null;
+      const s = getComputedStyle(el);
+      // 활성 버튼은 aria-label로 이름을 주므로(SortHeaderButton 주석 참조)
+      // textContent만 보면 상태 문구가 빠진 이름을 키로 쓰게 된다.
+      return {
+        text: el.getAttribute('aria-label') ?? (el.textContent ?? '').trim(),
+        ring: s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) >= 2,
+      };
+    });
+
+  const seen = new Map<string, boolean>();
+  for (let i = 0; i < 6; i += 1) {
+    await page.keyboard.press('Tab');
+    const info = await probe();
+    if (info) seen.set(info.text, info.ring);
+  }
+
+  expect(seen.get('제목'), `방문한 버튼: ${JSON.stringify([...seen])}`).toBe(true);
+  expect(seen.get('난이도, 오름차순 정렬 중'), `방문한 버튼: ${JSON.stringify([...seen])}`).toBe(true);
 });
 
 // URL이 유일한 출처다 — 클릭을 거치지 않고 쿼리로 직접 들어가도 같은

@@ -46,14 +46,21 @@ export function parseListQuery(search: URLSearchParams): ListQuery {
     q: search.get('q') ?? DEFAULT_QUERY.q,
     level: parseLevel(search.get('level')),
     status: parseStatus(search.get('status')),
-    tag: search.get('tag'),
+    // q와 달리 ''를 그대로 두지 않는다 — tag는 "이 태그로 거른다"는 뜻이라
+    // 빈 문자열에 의미가 없다(q는 "검색어 없음"이 그대로 ''다). 5b가 value=''를
+    // "필터 없음"으로 쓰는 <select>를 달면 그 값이 그대로 여기로 들어온다.
+    tag: search.get('tag') || null,
     sort: parseSort(search.get('sort')),
     dir: parseDir(search.get('dir')),
   };
 }
 
 /** 기본값과 같은 필드는 뺀다. level:0처럼 falsy지만 유효한 값은 null과
- *  엄격히 구분해야 하므로 각 필드를 명시적으로 기본값과 비교한다. */
+ *  엄격히 구분해야 하므로 각 필드를 명시적으로 기본값과 비교한다.
+ *
+ *  여섯 필드로만 새로 만든다 — URL에 `?utm=x`처럼 이 훅이 모르는 값이
+ *  있었다면 왕복(parse→여기) 뒤에는 사라진다. 의도된 동작이고 지금 그
+ *  무엇도 그 값에 기대지 않지만, 나중에 놀라지 않도록 적어 둔다. */
 export function toSearchParams(query: ListQuery): URLSearchParams {
   const params = new URLSearchParams();
   if (query.q !== DEFAULT_QUERY.q) params.set('q', query.q);
@@ -62,7 +69,10 @@ export function toSearchParams(query: ListQuery): URLSearchParams {
   // 좁혀지지 않는다.
   if (query.level !== null) params.set('level', String(query.level));
   if (query.status !== null) params.set('status', query.status);
-  if (query.tag !== null) params.set('tag', query.tag);
+  // tag는 level과 달리 유효한 falsy 값이 없다(빈 문자열은 "태그 없음"과
+  // 같은 뜻이다) — truthy 검사로 충분하고, 누군가 tag:''를 직접 넘겨도
+  // 안전하게 생략된다.
+  if (query.tag) params.set('tag', query.tag);
   if (query.sort !== DEFAULT_QUERY.sort) params.set('sort', query.sort);
   if (query.dir !== DEFAULT_QUERY.dir) params.set('dir', query.dir);
   return params;

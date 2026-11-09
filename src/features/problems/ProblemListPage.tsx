@@ -41,8 +41,12 @@ const STATUS_LABEL: Record<ProblemStatus, string> = {
  * 이 차이를 고정한다.
  */
 export function sortProblems(metas: ProblemMeta[], sort: ListQuery['sort'], dir: ListQuery['dir']): ProblemMeta[] {
+  // 로케일을 명시한다 — 지정하지 않으면 Node/Chromium의 "기본 로케일"에
+  // 기대게 되는데, small-ICU로 빌드된 CI 러너는 그 기본값조차 환경마다
+  // 다를 수 있다. 지금 세 제목은 로케일을 줘도 안 줘도 같은 순서지만(node로
+  // 확인), 그 우연에 기대지 않는다.
   const primary = (a: ProblemMeta, b: ProblemMeta): number =>
-    sort === 'title' ? a.title.localeCompare(b.title) : a.level - b.level;
+    sort === 'title' ? a.title.localeCompare(b.title, 'ko') : a.level - b.level;
   const tiebreak = (a: ProblemMeta, b: ProblemMeta): number =>
     (a.order ?? 9999) - (b.order ?? 9999) || a.id.localeCompare(b.id);
   return [...metas].sort((a, b) => {
@@ -56,8 +60,17 @@ const SORT_LABEL: Record<ListQuery['sort'], string> = { level: '난이도', titl
 /**
  * 제목·난이도 열 머리. 눌러서 그 열로 정렬을 바꾸고, 같은 열을 다시 누르면
  * 방향이 뒤집힌다. 상태 표시는 aria-sort 대신 접근 가능한 이름으로 한다 —
- * 아래 ProblemListPage의 주석 참조. 화살표는 장식(aria-hidden)이고, 같은
- * 정보를 sr-only 글자가 스크린리더에 전달한다.
+ * 아래 ProblemListPage의 주석 참조. 화살표는 장식(aria-hidden)이다.
+ *
+ * 이름은 `aria-label`로 직접 준다 — 처음엔 보이는 글자 + sr-only 글자
+ * 조각으로 나눠 "텍스트에서 이름을 계산"하게 뒀는데, 실제 Chromium에서
+ * 접근 가능한 이름을 찍어 보니(리뷰 Important 2 대응 중 발견) 서로 다른
+ * 자식 노드의 텍스트를 이어붙일 때 **공백을 끼워 넣어**(ARIA accname 계산의
+ * 일부) `"제목 , 오름차순 정렬 중"`처럼 쉼표 앞에 뜬금없는 공백이 생겼다.
+ * jsdom의 `textContent`는 그 공백을 넣지 않아 유닛 테스트에서는 안 보이고
+ * 실제 브라우저에서만 드러나는 차이였다. `aria-label`은 그 결합 규칙을
+ * 아예 타지 않아 환경에 상관없이 같은 문자열이 보장된다. 보이는 글자
+ * "제목"으로 시작하므로 Label-in-Name(2.5.3)도 지킨다.
  */
 function SortHeaderButton({
   col,
@@ -69,15 +82,19 @@ function SortHeaderButton({
   onSort: (col: ListQuery['sort']) => void;
 }) {
   const active = query.sort === col;
+  const label = active
+    ? `${SORT_LABEL[col]}, ${query.dir === 'asc' ? '오름차순' : '내림차순'} 정렬 중`
+    : SORT_LABEL[col];
   return (
-    <button type="button" className={styles.sortBtn} aria-pressed={active} onClick={() => onSort(col)}>
+    <button
+      type="button"
+      className={styles.sortBtn}
+      aria-pressed={active}
+      aria-label={label}
+      onClick={() => onSort(col)}
+    >
       {SORT_LABEL[col]}
-      {active ? (
-        <>
-          <span aria-hidden="true" className={styles.sortArrow} data-dir={query.dir} />
-          <span className="sr-only">{query.dir === 'asc' ? ', 오름차순 정렬 중' : ', 내림차순 정렬 중'}</span>
-        </>
-      ) : null}
+      {active ? <span aria-hidden="true" className={styles.sortArrow} data-dir={query.dir} /> : null}
     </button>
   );
 }
@@ -150,6 +167,13 @@ export function ProblemListPage() {
             <SortHeaderButton col="level" query={query} onSort={onSort} />
             <span aria-hidden="true">태그</span>
           </div>
+          {/* 정렬이 바뀌면 목록 순서가 조용히 바뀐다 — 포커스가 머문 버튼의
+              이름이 달라지는 것 말고는 비시각 사용자에게 아무 신호가 없다.
+              OutputPanel.tsx:43의 채점 완료 live region과 같은 패턴: 항상
+              떠 있는 상태로 두고 내용이 바뀔 때만 읽히게 한다. */}
+          <p className="sr-only" role="status" aria-live="polite">
+            {`${SORT_LABEL[query.sort]} 기준 ${query.dir === 'asc' ? '오름차순' : '내림차순'}으로 정렬 중`}
+          </p>
           <ul className={styles.rows} onKeyDown={onKeyDown}>
             {sorted.map((meta) => {
               // setDraft는 코드가 스타터와 같으면 항목을 지운다 — 그래서

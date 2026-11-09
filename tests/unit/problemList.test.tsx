@@ -26,6 +26,31 @@ async function renderList(metas: ProblemMeta[], path = '/'): Promise<HTMLElement
 const renderedTitles = (host: HTMLElement): string[] =>
   Array.from(host.querySelectorAll('a[data-status] [class*="cellTitle"]')).map((el) => el.textContent ?? '');
 
+/** 정렬 헤더 버튼 하나의 상태를 한 번에 읽는다 — 접근 가능한 이름(aria-label),
+ *  aria-pressed, 화살표의 data-dir(비활성이면 요소 자체가 없어 null). 리뷰가
+ *  지적한 대로 이 세 가지를 **버튼마다, 양쪽 상태 모두** 확인해야 한다 —
+ *  "텍스트 길이 > 0" 같은 느슨한 단언은 aria-pressed를 둘 다 true로
+ *  뭉개거나 이름에서 상태 문구가 빠지는 변형을 전혀 잡지 못한다.
+ *
+ *  이름은 textContent가 아니라 aria-label을 읽는다 — 실제 브라우저의
+ *  accessible name 계산은 자식 텍스트 노드를 이어붙일 때 공백을 끼워 넣어
+ *  textContent와 다른 문자열이 나온다(SortHeaderButton 주석 참조).
+ *  aria-label을 직접 읽어야 실제로 AT가 듣는 문자열과 같다. */
+function sortButtonState(host: HTMLElement, label: '제목' | '난이도') {
+  const button = Array.from(host.querySelectorAll('[class*="head"] button')).find((b) =>
+    (b.textContent ?? '').startsWith(label),
+  ) as HTMLButtonElement | undefined;
+  return {
+    button,
+    name: button?.getAttribute('aria-label') ?? '',
+    pressed: button?.getAttribute('aria-pressed') ?? null,
+    dir: button?.querySelector('[class*="sortArrow"]')?.getAttribute('data-dir') ?? null,
+  };
+}
+
+const liveRegionText = (host: HTMLElement): string =>
+  (host.querySelector('[role="status"]')?.textContent ?? '').trim();
+
 const meta = (over: Partial<ProblemMeta> & { id: string }): ProblemMeta => ({
   title: over.id,
   level: 0,
@@ -129,7 +154,7 @@ describe('ProblemListPage', () => {
     expect(host.textContent).toContain('Lv.2');
   });
 
-  // sortByLevel의 유닛 테스트만으로는 목록이 그 함수를 **쓰는지** 알 수 없다.
+  // sortProblems의 유닛 테스트만으로는 목록이 그 함수를 **쓰는지** 알 수 없다.
   // 문제가 세 개뿐이고 그 셋의 order 순서와 난이도 순서가 같아, e2e는 정렬을
   // 빼먹어도 통과한다. 두 순서가 어긋나는 픽스처를 로더로 넣어 확인한다.
   it('로더가 돌려준 순서가 난이도 순과 다르면 난이도 순으로 다시 세운다', async () => {
@@ -195,45 +220,71 @@ describe('ProblemListPage', () => {
   // 정렬 버튼이 생기면서 깨진다 — 포커스 가능한 버튼이 스크린리더에서는
   // 사라지는데 탭으로는 닿는 상태가 axe 위반이자 실제 버그다. 그 수정을
   // 테스트로 고정한다.
-  it('.head는 더 이상 aria-hidden이 아니고, 정렬 버튼은 각자 접근 가능한 이름을 갖는다', async () => {
+  it('.head는 더 이상 aria-hidden이 아니고, 정렬 버튼은 기본 상태(난이도·오름차순)를 정확히 드러낸다', async () => {
     const host = await renderList(REAL_METAS);
     const head = host.querySelector('[class*="head"]');
     expect(head?.getAttribute('aria-hidden')).toBeNull();
 
     const buttons = Array.from(head?.querySelectorAll('button') ?? []);
     expect(buttons).toHaveLength(2);
-    for (const button of buttons) {
-      expect((button.textContent ?? '').trim().length).toBeGreaterThan(0);
-    }
+
+    // 기본 정렬은 난이도/오름차순이다 — 난이도가 활성, 제목은 비활성이어야
+    // 한다. aria-pressed가 둘 다 'true'가 되거나, sr-only 문구가 빠지거나,
+    // 화살표 data-dir이 안 맞는 변형이 전부 여기서 잡혀야 한다(리뷰 Important 1).
+    const level = sortButtonState(host, '난이도');
+    expect(level.name).toBe('난이도, 오름차순 정렬 중');
+    expect(level.pressed).toBe('true');
+    expect(level.dir).toBe('asc');
+
+    const title = sortButtonState(host, '제목');
+    expect(title.name).toBe('제목');
+    expect(title.pressed).toBe('false');
+    expect(title.dir).toBeNull(); // 비활성 열에는 화살표 요소 자체가 없다
+
+    expect(liveRegionText(host)).toBe('난이도 기준 오름차순으로 정렬 중');
   });
 
   // 제목 헤더를 누르면 정렬이 바뀌고(먼저 title/asc로), 같은 헤더를 다시
   // 누르면 방향이 뒤집힌다(title/desc). 클릭 한 번으로 열이 바뀔 때는 asc로
   // 리셋되고, 같은 열을 다시 누를 때만 토글된다는 두 규칙을 함께 본다.
+  // 매 단계에서 두 버튼 모두의 이름·aria-pressed·화살표 방향과 live region
+  // 문구까지 확인한다 — "순서만 맞으면 통과"가 아니라 사용자가 실제로 보고
+  // 듣는 상태 표시 전체를 고정한다(리뷰 Important 1·Minor 1).
   it('제목 헤더를 누르면 제목 정렬로 바뀌고, 다시 누르면 방향이 뒤집힌다', async () => {
     const host = await renderList(REAL_METAS);
-    const titleButton = Array.from(host.querySelectorAll('[class*="head"] button')).find((b) =>
-      (b.textContent ?? '').includes('제목'),
-    ) as HTMLButtonElement;
+    const titleButton = sortButtonState(host, '제목').button;
     expect(titleButton).toBeDefined();
 
     await act(async () => {
-      titleButton.click();
+      titleButton!.click();
     });
     expect(renderedTitles(host).map((t) => REAL_METAS.find((m) => m.title === t)?.id.slice(0, 3))).toEqual([
       '002',
       '003',
       '001',
     ]);
-    expect(titleButton.getAttribute('aria-pressed')).toBe('true');
+    let title = sortButtonState(host, '제목');
+    let level = sortButtonState(host, '난이도');
+    expect(title.name).toBe('제목, 오름차순 정렬 중');
+    expect(title.pressed).toBe('true');
+    expect(title.dir).toBe('asc');
+    expect(level.name).toBe('난이도');
+    expect(level.pressed).toBe('false');
+    expect(level.dir).toBeNull();
+    expect(liveRegionText(host)).toBe('제목 기준 오름차순으로 정렬 중');
 
     await act(async () => {
-      titleButton.click();
+      titleButton!.click();
     });
     expect(renderedTitles(host).map((t) => REAL_METAS.find((m) => m.title === t)?.id.slice(0, 3))).toEqual([
       '001',
       '003',
       '002',
     ]);
+    title = sortButtonState(host, '제목');
+    expect(title.name).toBe('제목, 내림차순 정렬 중');
+    expect(title.pressed).toBe('true');
+    expect(title.dir).toBe('desc'); // 화살표가 실제로 뒤집히는지(리뷰 Important 1)
+    expect(liveRegionText(host)).toBe('제목 기준 내림차순으로 정렬 중');
   });
 });

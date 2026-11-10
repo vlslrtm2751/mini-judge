@@ -208,6 +208,19 @@ describe('filterProblems', () => {
     it('공백만 있는 검색어는 필터 없음과 같다', () => {
       expect(filterProblems(REAL_METAS, { ...DEFAULT_QUERY, q: '   ' }, anyStatus)).toEqual(REAL_METAS);
     });
+
+    // `(meta.tags ?? []).some(...)`의 `?? []` 가드는 지금까지 "필터 둘
+    // 이상은 AND로 합쳐진다" 테스트(아래)가 우연히 태그 없는 메타를 쓴
+    // 덕에만 죽었다 — 그 테스트의 목적은 AND 로직이라 가드가 빠져도 되는
+    // 날엔 다른 이유로 같이 죽어 신호가 섞인다. q 하나만으로, 제목에도
+    // 안 걸리는 검색어를 써서 이 가드를 직접 고정한다(리뷰 Minor 12) —
+    // 가드를 지우면(`meta.tags.some(...)`) tags가 undefined인 메타에서
+    // TypeError가 나 바로 아래 toThrow 쪽이 잡는다.
+    it('태그가 없는 메타를 검색해도 터지지 않고 조용히 빠진다(제목에도 안 걸리는 경우)', () => {
+      const metas = [meta({ id: 'no-tags', title: '전혀 다른 제목' })];
+      expect(() => filterProblems(metas, { ...DEFAULT_QUERY, q: '배열' }, anyStatus)).not.toThrow();
+      expect(filterProblems(metas, { ...DEFAULT_QUERY, q: '배열' }, anyStatus)).toEqual([]);
+    });
   });
 
   it('level로 거른다', () => {
@@ -676,5 +689,36 @@ describe('ProblemListPage', () => {
     params = new URLSearchParams(router.state.location.search);
     expect(params.get('level')).toBe('0');
     expect(params.get('q')).toBe('배열');
+  });
+
+  // 리뷰 Minor 7: resetFilters(ProblemListPage.tsx)의 setQuery 호출에서
+  // q:''를 빼면 — 로컬 qInput은 즉시 비어 화면은 바로 맞아 보이지만, URL의
+  // q는 "qInput과 query.q가 달라졌다"는 디바운스 effect가 300ms 뒤에야
+  // 지운다. e2e의 toHaveURL처럼 재시도하는 단언은 그 지연을 가려 "결국은
+  // 깨끗해지니 통과"로 넘어간다. 여기서는 act() 밖의 실제 시간을 전혀
+  // 기다리지 않고 — resetFilters의 setQuery는 타이머가 아니라 클릭
+  // 핸들러 안에서 바로 불린다 — 클릭 직후 시점의 URL을 본다.
+  it('필터 초기화는 URL의 q를 즉시 지운다(디바운스를 기다리지 않는다)', async () => {
+    const router = createMemoryRouter([{ path: '/', element: <ProblemListPage />, loader: () => REAL_METAS }], {
+      initialEntries: ['/?q=zzz'],
+    });
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    await act(async () => {
+      createRoot(host).render(<RouterProvider router={router} />);
+    });
+    expect(new URLSearchParams(router.state.location.search).get('q')).toBe('zzz');
+
+    const resetBtn = Array.from(host.querySelectorAll('button')).find(
+      (b) => (b.textContent ?? '').trim() === '필터 초기화',
+    )!;
+    await act(async () => {
+      resetBtn.click();
+    });
+
+    // 디바운스(300ms)를 한순간도 기다리지 않은 이 지점에서 이미 q가 없어야
+    // 한다 — 기다렸다가 통과하면(즉 여기서 실패했다가 400ms 뒤 재확인하면
+    // 통과하면) 리뷰가 지적한 그 결함이다.
+    expect(new URLSearchParams(router.state.location.search).get('q')).toBeNull();
   });
 });

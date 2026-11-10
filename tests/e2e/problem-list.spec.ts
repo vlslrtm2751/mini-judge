@@ -118,8 +118,12 @@ test('정렬 버튼도 Tab으로 도달하면 포커스 링이 보인다', async
       };
     });
 
+  // 지금의 탭 순서(입력, 난이도, 상태, 태그, 제목 버튼(5번째), 난이도
+  // 버튼(6번째))에 정확히 맞춘 상한은 6이다 — 헤더 행 앞에 포커스 가능한
+  // 컨트롤이 하나만 더 생겨도(예: 0건 상태의 "필터 초기화"가 끼어드는
+  // 변형) 두 버튼 모두 무관한 이유로 못 잡는다(리뷰 Minor 8). 여유를 둔다.
   const seen = new Map<string, boolean>();
-  for (let i = 0; i < 6; i += 1) {
+  for (let i = 0; i < 12; i += 1) {
     await page.keyboard.press('Tab');
     const info = await probe();
     if (info) seen.set(info.text, info.ring);
@@ -208,6 +212,39 @@ test('검색 입력은 태그에 없어도 제목에 걸리는 검색어를 찾�
   await expect(rows(page)).toHaveCount(1);
   await expect(rows(page)).toContainText('짝수만 더하기');
   await expect(page).toHaveURL(/#\/\?q=[^&]+$/);
+});
+
+// 리뷰 Important 3: ProblemListPage.tsx:163-166의 URL→입력 동기화 effect는
+// 지워도 유닛 124/124가 그대로 green이었다 — 딥링크는 useState(query.q)
+// 초기값이 담당하고, 이 effect의 유일한 역할은 뒤로/앞으로인데 q로 history를
+// 오가는 테스트가 전혀 없었다. 디바운스가 끝나기 전에(= 아직 history에
+// 실리지 않은 두 번째 검색어가 있는 채로) 뒤로 가면, 입력창과 목록이 함께
+// 그 전 history 상태로 돌아가는지를 본다.
+test('디바운스가 끝나기 전에 뒤로 가면 검색창과 목록이 함께 그 전 상태로 돌아간다', async ({ page }) => {
+  await page.goto('#/');
+
+  // 첫 검색어 — 디바운스가 끝나길 기다려 URL에 커밋되게 한다(history
+  // entry 하나가 쌓인다).
+  await page.getByLabel('제목·태그 검색').fill('배열');
+  await expect(page).toHaveURL(/#\/\?q=[^&]+$/);
+  await expect(rows(page)).toHaveCount(1);
+  await expect(rows(page)).toContainText('짝수만 더하기');
+
+  // 두 번째 검색어 — 디바운스 커밋을 기다리지 않고 바로 뒤로 간다. 화면은
+  // 로컬 qInput으로 이미 바뀌어 있지만 URL에는 아직 안 실린 상태다.
+  await page.getByLabel('제목·태그 검색').fill('문자열');
+  await expect(rows(page)).toHaveCount(1);
+  await expect(rows(page)).toContainText('문자열 n번 이어붙이기');
+
+  await page.goBack();
+
+  // 두 번째 검색어는 history에 실린 적이 없으므로, 뒤로 가면 첫 검색어
+  // 이전(필터 없는 초기 상태)으로 간다 — 입력창도 목록도 함께 돌아가야
+  // 한다. effect가 없으면 qInput이 'string 1'에 그대로 남아 입력창·목록이
+  // URL과 어긋난다.
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(rows(page)).toHaveCount(3);
+  await expect(page.getByLabel('제목·태그 검색')).toHaveValue('');
 });
 
 // 리뷰 포커스 5 / 브리프 Step 5: 0건 URL로 바로 들어가도(클릭으로 거쳐가지

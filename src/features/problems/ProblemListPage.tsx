@@ -270,6 +270,15 @@ export function ProblemListPage() {
           </label>
           <label className={styles.select}>
             <span className="sr-only">난이도 필터</span>
+            {/* URL이 levels(현 metas에서 모은 값)에 없는 레벨을 가리키면(예:
+                ?level=9 — 공유 링크나 손으로 바꾼 주소로만 닿는다) 일치하는
+                option이 없어 네이티브 select가 value=""로 떨어져 "전체
+                난이도"를 보여준다. 목록은 0건이고 안내는 "맞는 문제가
+                없다"는데 컨트롤은 "필터 없음"이라고 말하는 모순이다(리뷰
+                Important 1). 활성값 전용 option을 하나 더 그려 select가
+                항상 URL과 일치하게 한다 — parse 계층(useListQuery.ts)에서는
+                못 고친다, level의 유효값은 "지금의 문제 데이터"에 달려
+                있고 그 훅은 데이터를 보지 못한다. */}
             <select
               value={query.level ?? ''}
               onChange={(e: ChangeEvent<HTMLSelectElement>) =>
@@ -282,6 +291,9 @@ export function ProblemListPage() {
                   Lv.{lv}
                 </option>
               ))}
+              {query.level !== null && !levels.includes(query.level) ? (
+                <option value={query.level}>Lv.{query.level} (해당 문제 없음)</option>
+              ) : null}
             </select>
           </label>
           <label className={styles.select}>
@@ -302,13 +314,20 @@ export function ProblemListPage() {
           </label>
           <label className={styles.select}>
             <span className="sr-only">태그 필터</span>
-            {/* value=""가 "필터 없음"이다. toSearchParams가 빈 문자열을
-                truthy 검사로 URL에서 빼고, parseListQuery가 다시 null로
-                접는다(useListQuery.ts, task-5a 수정) — 여기서 또 접지
-                않는다. */}
+            {/* level과 같은 함정, 같은 해법(리뷰 Important 1) — tags에 없는
+                값(예: ?tag=zzz)을 활성값 전용 option으로 하나 더 그려
+                select가 항상 URL과 일치하게 한다.
+                핸들러는 level·status와 같이 ''를 직접 null로 접어 넘긴다
+                (리뷰 Minor 11). 예전에는 ''를 그대로 넘기고 toSearchParams→
+                parseListQuery의 왕복(useListQuery.ts, task-5a 수정)에 접기를
+                맡겼는데 — 동작은 같지만, 핸들러만 읽는 사람은
+                query.tag === ''가 가능하다고 오해하기 쉽고 바로 아래
+                hasFilter도 그 값을 활성 필터로 셀 여지가 있었다. */}
             <select
               value={query.tag ?? ''}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) => setQuery({ tag: e.target.value })}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                setQuery({ tag: e.target.value === '' ? null : e.target.value })
+              }
             >
               <option value="">전체 태그</option>
               {tags.map((t) => (
@@ -316,6 +335,9 @@ export function ProblemListPage() {
                   {t}
                 </option>
               ))}
+              {query.tag !== null && !tags.includes(query.tag) ? (
+                <option value={query.tag}>{query.tag} (해당 문제 없음)</option>
+              ) : null}
             </select>
           </label>
         </div>

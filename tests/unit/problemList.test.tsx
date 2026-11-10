@@ -437,6 +437,44 @@ describe('ProblemListPage', () => {
     expect(selectByLabel(host, '난이도 필터').value).toBe('1');
   });
 
+  // 태그 derivation(아래 '태그 select 옵션은...')은 이미 고정돼 있지만
+  // 난이도는 아니었다 — `:211`을 `const levels = [0, 1, 2, 3, 4, 5]`로
+  // 바꿔도 유닛 124/124·e2e 40/40이 그대로 green이었다(리뷰 Minor 4).
+  // 희귀 레벨(기본 난이도 select에 없는 값)로 같은 모양의 테스트를 만든다.
+  it('난이도 select 옵션은 metas에서 모은다(하드코딩이 아니다)', async () => {
+    const host = await renderList([meta({ id: 'x', title: '희귀 난이도 문제', level: 42 })]);
+    const select = selectByLabel(host, '난이도 필터');
+    const optionTexts = Array.from(select.querySelectorAll('option')).map((o) => o.textContent);
+    expect(optionTexts).toContain('Lv.42');
+
+    await act(async () => {
+      setControlValue(select, '42');
+    });
+    expect(renderedTitles(host)).toEqual(['희귀 난이도 문제']);
+  });
+
+  // 리뷰 Important 1: URL이 levels에 없는 값(예: ?level=9 — 브리프의 canonical
+  // 0건 URL)을 가리키면, 일치하는 <option>이 없어 네이티브 select가 value=""로
+  // 떨어져 "전체 난이도"를 보여준다 — 목록은 0건인데 컨트롤은 "필터 없음"
+  // 이라고 말하는 모순. select.value가 여전히 URL의 값과 같아야 한다.
+  it('URL이 존재하지 않는 난이도를 가리키면 select가 그 값을 활성 옵션으로 보여준다(전체로 떨어지지 않는다)', async () => {
+    const host = await renderList(REAL_METAS, '/?level=9');
+    const select = selectByLabel(host, '난이도 필터');
+
+    expect(select.value).toBe('9');
+    expect(select.selectedOptions[0]?.textContent).not.toBe('전체 난이도');
+    expect(renderedTitles(host)).toEqual([]);
+  });
+
+  it('URL이 존재하지 않는 태그를 가리키면 select가 그 값을 활성 옵션으로 보여준다(전체로 떨어지지 않는다)', async () => {
+    const host = await renderList(REAL_METAS, '/?tag=zzz');
+    const select = selectByLabel(host, '태그 필터');
+
+    expect(select.value).toBe('zzz');
+    expect(select.selectedOptions[0]?.textContent).not.toBe('전체 태그');
+    expect(renderedTitles(host)).toEqual([]);
+  });
+
   // 상태 필터는 행의 마크가 쓰는 것과 같은 유도(레코드·draft)를 거쳐야
   // 한다 — 별도 구현이면 마크와 필터 결과가 어긋날 수 있다.
   it('상태 select는 행의 마크와 같은 유도로 걸러낸다', async () => {

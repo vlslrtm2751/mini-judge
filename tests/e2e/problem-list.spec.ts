@@ -221,6 +221,13 @@ test('0건이 되는 URL로 직접 들어가면 안내와 초기화 버튼이 �
   await expect(page.locator('[class*="empty"]')).toBeVisible();
   // 필터를 걸어 0건이 되어도 진척도 줄은 전체 문제 수 기준이다.
   await expect(page.getByText('3문제 중 0개 통과')).toBeVisible();
+  // 리뷰 Important 1: 9는 levels에 없는 값이라 일치하는 <option>이 없으면
+  // 네이티브 select가 value=""로 떨어져 "전체 난이도"를 보여준다 — 목록은
+  // 0건이라고 하는데 컨트롤은 "필터 없음"이라고 말하는 모순. select가
+  // 여전히 9를 보여주는지(그리고 그 옵션 글자가 "전체 난이도"가 아닌지)
+  // 직접 본다.
+  await expect(page.getByLabel('난이도 필터')).toHaveValue('9');
+  await expect(page.getByLabel('난이도 필터').locator('option:checked')).not.toHaveText('전체 난이도');
 
   await page.getByRole('button', { name: '필터 초기화', exact: true }).click();
 

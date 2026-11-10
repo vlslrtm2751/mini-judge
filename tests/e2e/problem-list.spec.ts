@@ -178,3 +178,61 @@ test('목록이 길어지면 문서가 아니라 목록이 스크롤된다', asy
   }));
   expect(doc.scroll).toBeLessThanOrEqual(doc.client + 1);
 });
+
+// 검색은 제목과 태그를 나눠 단언한다. 브리프 작성자가 실제 데이터로 확인한
+// 표: 문자열·정렬은 제목과 태그 둘 다에 걸려 "제목만 보는" 구현도 통과시킨다
+// — 배열(태그에서만, 제목 "짝수만 더하기"에는 없음)과 짝수(제목에서만, 태그
+// "배열"에는 없음)로 각각 단언해야 태그 검색이 실제로 검증된다.
+test('검색 입력은 제목에 없어도 태그에 걸리는 검색어를 찾는다 (배열 → 001)', async ({ page }) => {
+  await page.goto('#/');
+
+  await page.getByLabel('문제 검색').fill('배열');
+
+  await expect(rows(page)).toHaveCount(1);
+  await expect(rows(page)).toContainText('짝수만 더하기');
+  // 검색하면 URL에 ?q=가 붙는다. 한글이라 percent-encoding이 섞이므로 정확한
+  // 인코딩을 손으로 계산하지 않고 "q= 뒤에 뭔가 있고 그게 유일한 쿼리다"만
+  // 확인한다.
+  await expect(page).toHaveURL(/#\/\?q=[^&]+$/);
+});
+
+test('검색 입력은 태그에 없어도 제목에 걸리는 검색어를 찾는다 (짝수 → 001)', async ({ page }) => {
+  await page.goto('#/');
+
+  await page.getByLabel('문제 검색').fill('짝수');
+
+  await expect(rows(page)).toHaveCount(1);
+  await expect(rows(page)).toContainText('짝수만 더하기');
+  await expect(page).toHaveURL(/#\/\?q=[^&]+$/);
+});
+
+// 리뷰 포커스 5 / 브리프 Step 5: 0건 URL로 바로 들어가도(클릭으로 거쳐가지
+// 않아도) 빈 표가 아니라 안내와 초기화가 보여야 한다.
+test('0건이 되는 URL로 직접 들어가면 안내와 초기화 버튼이 보이고, 누르면 전체가 돌아오며 URL이 깨끗해진다', async ({
+  page,
+}) => {
+  await page.goto('#/?level=9');
+
+  await expect(rows(page)).toHaveCount(0);
+  // 같은 문구가 sr-only 라이브 리전에도 그대로 있어(의도한 동작 — 비시각
+  // 사용자도 같은 안내를 듣는다) getByText는 두 곳에 걸려 strict mode
+  // violation이 난다. 눈에 보이는 안내 블록으로 범위를 좁힌다.
+  await expect(page.locator('[class*="empty"]')).toContainText('조건에 맞는 문제가 없습니다');
+  await expect(page.locator('[class*="empty"]')).toBeVisible();
+  // 필터를 걸어 0건이 되어도 진척도 줄은 전체 문제 수 기준이다.
+  await expect(page.getByText('3문제 중 0개 통과')).toBeVisible();
+
+  await page.getByRole('button', { name: '필터 초기화', exact: true }).click();
+
+  await expect(rows(page)).toHaveCount(3);
+  await expect(page).toHaveURL(/#\/$/);
+});
+
+test('필터를 건 상태에서도 진척도 줄의 분모는 전체 문제 수로 남는다', async ({ page }) => {
+  await page.goto('#/');
+
+  await page.getByLabel('난이도 필터').selectOption('1');
+
+  await expect(rows(page)).toHaveCount(1);
+  await expect(page.getByText('3문제 중 0개 통과')).toBeVisible();
+});

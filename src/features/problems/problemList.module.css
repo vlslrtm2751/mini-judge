@@ -98,6 +98,97 @@
   border-radius: 2px;
 }
 
+/* 검색 입력 + 세 select. flex-wrap만으로 좁은 폭에 대응한다 — 모바일
+   미디어쿼리는 Task 7의 몫이라 여기서는 쓰지 않는다. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: none;
+}
+
+.search {
+  position: relative;
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.search input {
+  width: 100%;
+  font-size: 13px;
+  padding: 7px 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: var(--sheet);
+  color: var(--ink);
+}
+
+.search input::placeholder {
+  color: var(--ink-3);
+}
+
+/* ProblemPicker(chrome.module.css의 .picker)와 같은 커스텀 화살표 트릭 —
+   난이도·상태·태그 세 필터 select가 공유한다(스펙 235행). */
+.select {
+  position: relative;
+  flex: none;
+  min-width: 0;
+}
+
+.select::after {
+  content: '';
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--ink-2);
+  border-bottom: 1.5px solid var(--ink-2);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.select select {
+  appearance: none;
+  font-size: 13px;
+  font-weight: 500;
+  max-width: 100%;
+  padding: 7px 28px 7px 10px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: var(--sheet);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* 0건 상태 — 안내 문구 + 필터 초기화. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 16px;
+  color: var(--ink-2);
+  font-size: 13px;
+  text-align: center;
+}
+
+.resetBtn {
+  appearance: none;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+
+.resetBtn:hover {
+  background: var(--sheet-2);
+}
+
 /* flex: 0 1 auto — 행이 적으면 내용만큼만 차지해 위쪽에 모이고, 많아지면
    남은 높이까지만 늘어난 뒤 그 안에서 스크롤한다. */
 .scroller {

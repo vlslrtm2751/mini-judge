@@ -1,4 +1,5 @@
-import type { KeyboardEvent } from 'react';
+import { useEffect, useState } from 'react';
+import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Link, useLoaderData } from 'react-router-dom';
 import type { ProblemMeta } from '@/domain/types';
 import type { ProblemStatus } from '@/domain/progress';
@@ -26,6 +27,52 @@ const STATUS_LABEL: Record<ProblemStatus, string> = {
   wip: '진행 중',
   untried: '미시도',
 };
+
+// 상태 select의 옵션 순서. ProblemStatus는 고정된 네 값이라(태그·난이도와
+// 달리 데이터에서 모을 대상이 아니다) 여기서 하드코딩한다.
+const STATUS_FILTER_OPTIONS: readonly ProblemStatus[] = ['solved', 'failed', 'wip', 'untried'];
+
+// 검색창의 타이핑을 URL 커밋 전에 모아 둔다 — useListQuery.setQuery(5a가
+// 고정한 시그니처, replace 옵션이 없다)는 호출마다 history push를 한다.
+// 디바운스 없이 글자마다 그걸 부르면 글자 수만큼 history entry가 쌓여
+// 뒤로가기가 한 글자씩만 되돌아간다. 화면(필터링)은 즉시 반응하되 — 아래
+// qInput을 쓴다 — URL 커밋만 이 시간만큼 미룬다.
+const SEARCH_DEBOUNCE_MS = 300;
+
+/**
+ * q(검색어)·level·status·tag 네 필터를 모두 AND로 적용한다. 기본값(빈
+ * 문자열 혹은 null)인 필터는 건너뛴다 — 네 필드가 전부 기본값이면 입력을
+ * 내용 그대로 돌려준다.
+ *
+ * `statusOf`를 호출자가 주입한다 — 행을 그릴 때 쓰는
+ * `deriveStatus(records[meta.id], hasDraft)`와 **같은 함수**를 넘겨야 한다.
+ * 여기서 상태를 다시 유도하면(두 번째 구현) 목록의 마크와 상태 필터 결과가
+ * 어긋날 수 있다.
+ *
+ * `q`는 대소문자를 구분하지 않고(toLowerCase) 앞뒤 공백을 무시한다(trim) —
+ * 둘 다 결정이고 테스트로 고정했다. 제목 또는 태그 중 하나라도 검색어를
+ * 포함하면(부분 일치) 통과한다.
+ */
+export function filterProblems(
+  metas: ProblemMeta[],
+  query: ListQuery,
+  statusOf: (meta: ProblemMeta) => ProblemStatus,
+): ProblemMeta[] {
+  const q = query.q.trim().toLowerCase();
+  return metas.filter((meta) => {
+    if (query.level !== null && meta.level !== query.level) return false;
+    if (query.status !== null && statusOf(meta) !== query.status) return false;
+    // tags는 선택 필드다 — 없는 메타는 ?? []로 빈 배열처럼 다뤄 태그 필터에서
+    // 조용히 빠진다(터지지 않는다).
+    if (query.tag !== null && !(meta.tags ?? []).includes(query.tag)) return false;
+    if (q !== '') {
+      const inTitle = meta.title.toLowerCase().includes(q);
+      const inTags = (meta.tags ?? []).some((tag) => tag.toLowerCase().includes(q));
+      if (!inTitle && !inTags) return false;
+    }
+    return true;
+  });
+}
 
 /**
  * `sort`(난이도·제목) 기준으로 정렬하고, 1차 키가 같으면 작성자가 지정한
@@ -104,14 +151,79 @@ export function ProblemListPage() {
   const records = useSubmitStore((s) => s.records);
   const drafts = useDraftStore((s) => s.drafts);
   // 필터·정렬의 유일한 출처는 URL 쿼리다 — 컴포넌트에 따로 상태를 두지 않는다.
-  // q·level·status·tag는 5b가 검색·필터 컨트롤을 얹을 때까지는 파싱·직렬화만
-  // 되고 여기서는 쓰이지 않는다.
   const [query, setQuery] = useListQuery();
 
-  const sorted = sortProblems(metas, query.sort, query.dir);
-  // 분모도 분자도 현재 문제 목록 기준이다 — id를 바꾼 옛 기록이 남아 있어도
-  // 분자를 부풀리지 않는다.
+  // 검색창만 예외다(바로 아래 두 useEffect). 나머지 세 필터(level·status·tag)
+  // 는 select의 discrete한 change 한 번이 곧 커밋이라 5a의 정렬 버튼과 같은
+  // 패턴을 그대로 쓴다 — 로컬 상태가 없다.
+  const [qInput, setQInput] = useState(query.q);
+
+  // 초기화 버튼이나 뒤로가기·직접 진입처럼 URL이 "밖에서" 바뀌면 입력창도
+  // 맞춘다. 디바운스 커밋 직후에도 이 효과가 돌지만 qInput이 이미 같은
+  // 값이라 setQInput은 no-op이다.
+  useEffect(() => {
+    setQInput(query.q);
+  }, [query.q]);
+
+  // 타이핑을 디바운스해 커밋한다. useListQuery.setQuery는 호출마다
+  // history push를 한다(useListQuery.ts는 5b의 수정 대상이 아니라 replace
+  // 옵션을 추가할 수 없다) — 디바운스 없이 글자마다 그걸 부르면 글자
+  // 수만큼 history entry가 쌓여 뒤로가기가 한 글자씩만 되돌아간다.
+  //
+  // query.q·setQuery를 의존성에 넣는 것이 장식이 아니다 — 타이핑 중간에
+  // 난이도·상태·태그 select를 바꾸면(둘 다 같은 query 객체를 머지하는
+  // setQuery를 쓴다) setQuery의 참조가 바뀐다. 의존성에서 빠지면 이
+  // effect가 그 변화를 못 보고 오래된 클로저로 커밋해, select로 바꾼
+  // 값을 되돌려 버린다. 이 재스케줄 덕에 타이머가 항상 최신 query를 문다.
+  useEffect(() => {
+    if (qInput === query.q) return;
+    const timer = setTimeout(() => setQuery({ q: qInput }), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [qInput, query.q, setQuery]);
+
+  // 행을 그릴 때 쓰는 유도와 상태 필터가 반드시 같은 함수를 쓴다 — 아래
+  // .map()도 이 참조를 그대로 쓴다(두 번째 구현을 만들지 않는다).
+  const statusOf = (meta: ProblemMeta): ProblemStatus =>
+    deriveStatus(records[meta.id], typeof drafts[meta.id] === 'string');
+
+  // 검색은 로컬 입력을 즉시 쓰고(디바운스는 URL 커밋만 미룬다 — 화면은
+  // 미루지 않는다), 나머지 세 필터는 커밋된 query를 쓴다.
+  const effectiveQuery: ListQuery = { ...query, q: qInput };
+  const filtered = filterProblems(metas, effectiveQuery, statusOf);
+  const visible = sortProblems(filtered, query.sort, query.dir);
+  // 분모도 분자도 현재 문제 목록 "전체" 기준이다 — 필터와 무관하다(스펙
+  // 226행). id를 바꾼 옛 기록이 남아 있어도 분자를 부풀리지 않는다.
   const solved = countSolved(metas, records);
+
+  const hasFilter =
+    effectiveQuery.q !== '' ||
+    effectiveQuery.level !== null ||
+    effectiveQuery.status !== null ||
+    effectiveQuery.tag !== null;
+  // 필터가 없으면 비워 둔다(OutputPanel.tsx의 live region과 같은 패턴 —
+  // 항상 떠 있되 알릴 내용이 있을 때만 채운다). 0건은 눈으로 보이는 안내
+  // 문구와 같은 글자를 그대로 읽어 준다.
+  const filterStatusText = !hasFilter ? '' : visible.length === 0 ? '조건에 맞는 문제가 없습니다' : `${visible.length}건 표시 중`;
+
+  // 태그·난이도 옵션은 지금의 metas에서 모은다(하드코딩 금지) — 문제가
+  // 늘거나 줄어도 select가 따라간다. status는 ProblemStatus가 고정된 네
+  // 값이라 위 STATUS_FILTER_OPTIONS에서 가져온다.
+  const levels = Array.from(new Set(metas.map((m) => m.level))).sort((a, b) => a - b);
+  const tags: string[] = [];
+  for (const m of metas) {
+    for (const t of m.tags ?? []) {
+      if (!tags.includes(t)) tags.push(t);
+    }
+  }
+
+  // "필터 초기화" — q·level·status·tag만 기본값으로 되돌린다. sort·dir은
+  // 5b의 범위가 아니라 손대지 않는다(사용자가 고른 정렬은 필터 초기화와
+  // 무관하게 남는다). qInput은 직접 비워 디바운스를 기다리지 않고 입력창이
+  // 바로 반영되게 한다.
+  const resetFilters = () => {
+    setQInput('');
+    setQuery({ q: '', level: null, status: null, tag: null });
+  };
 
   // 같은 열을 다시 누르면 방향만 뒤집고, 다른 열을 누르면 그 열의 오름차순
   // 으로 리셋한다.
@@ -146,6 +258,68 @@ export function ProblemListPage() {
           </p>
         </header>
 
+        <div className={styles.filters}>
+          <label className={styles.search}>
+            <span className="sr-only">문제 검색</span>
+            <input
+              type="search"
+              placeholder="제목·태그 검색"
+              value={qInput}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setQInput(e.target.value)}
+            />
+          </label>
+          <label className={styles.select}>
+            <span className="sr-only">난이도 필터</span>
+            <select
+              value={query.level ?? ''}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                setQuery({ level: e.target.value === '' ? null : Number(e.target.value) })
+              }
+            >
+              <option value="">전체 난이도</option>
+              {levels.map((lv) => (
+                <option value={lv} key={lv}>
+                  Lv.{lv}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.select}>
+            <span className="sr-only">상태 필터</span>
+            <select
+              value={query.status ?? ''}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                setQuery({ status: e.target.value === '' ? null : (e.target.value as ProblemStatus) })
+              }
+            >
+              <option value="">전체 상태</option>
+              {STATUS_FILTER_OPTIONS.map((s) => (
+                <option value={s} key={s}>
+                  {STATUS_LABEL[s]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.select}>
+            <span className="sr-only">태그 필터</span>
+            {/* value=""가 "필터 없음"이다. toSearchParams가 빈 문자열을
+                truthy 검사로 URL에서 빼고, parseListQuery가 다시 null로
+                접는다(useListQuery.ts, task-5a 수정) — 여기서 또 접지
+                않는다. */}
+            <select
+              value={query.tag ?? ''}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => setQuery({ tag: e.target.value })}
+            >
+              <option value="">전체 태그</option>
+              {tags.map((t) => (
+                <option value={t} key={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
         <div className={styles.scroller}>
           {/* 표로 보이되 행 전체가 링크여야 해서 <table>을 쓸 수 없고, 열 이름이
               행과 프로그램적으로 묶이지도 않는다(요소 전체에 aria-hidden을
@@ -174,32 +348,46 @@ export function ProblemListPage() {
           <p className="sr-only" role="status" aria-live="polite">
             {`${SORT_LABEL[query.sort]} 기준 ${query.dir === 'asc' ? '오름차순' : '내림차순'}으로 정렬 중`}
           </p>
-          <ul className={styles.rows} onKeyDown={onKeyDown}>
-            {sorted.map((meta) => {
-              // setDraft는 코드가 스타터와 같으면 항목을 지운다 — 그래서
-              // 스타터 그대로 돌린 문제는 draft가 남지 않고 미시도로 남는다.
-              const status = deriveStatus(records[meta.id], typeof drafts[meta.id] === 'string');
-              return (
-                <li key={meta.id}>
-                  <Link className={styles.row} to={`/problems/${meta.id}`} data-status={status}>
-                    <span className={styles.cellMark}>
-                      <Mark kind={MARK[status]} />
-                      <span className="sr-only">{STATUS_LABEL[status]}</span>
-                    </span>
-                    <span className={styles.cellTitle}>{meta.title}</span>
-                    <span className={styles.cellLevel}>Lv.{meta.level}</span>
-                    <span className={styles.cellTags}>
-                      {(meta.tags ?? []).map((tag) => (
-                        <span className={styles.tag} key={tag}>
-                          {tag}
-                        </span>
-                      ))}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          {/* 정렬 live region과 별개로 둔다 — 하나로 합치면 5a가 고정한 그
+              region의 문구를 바꾸게 되는데, 정렬과 필터는 독립적으로 바뀌는
+              서로 다른 상태라 따로 알리는 쪽이 더 간단하고, 5a의 리뷰를
+              지난 그 테스트들을 건드리지 않는다. 필터가 없으면 비워 둔다. */}
+          <p className="sr-only" role="status" aria-live="polite" data-live="filter-count">
+            {filterStatusText}
+          </p>
+          {visible.length === 0 ? (
+            <div className={styles.empty}>
+              <p>조건에 맞는 문제가 없습니다</p>
+              <button type="button" className={styles.resetBtn} onClick={resetFilters}>
+                필터 초기화
+              </button>
+            </div>
+          ) : (
+            <ul className={styles.rows} onKeyDown={onKeyDown}>
+              {visible.map((meta) => {
+                const status = statusOf(meta);
+                return (
+                  <li key={meta.id}>
+                    <Link className={styles.row} to={`/problems/${meta.id}`} data-status={status}>
+                      <span className={styles.cellMark}>
+                        <Mark kind={MARK[status]} />
+                        <span className="sr-only">{STATUS_LABEL[status]}</span>
+                      </span>
+                      <span className={styles.cellTitle}>{meta.title}</span>
+                      <span className={styles.cellLevel}>Lv.{meta.level}</span>
+                      <span className={styles.cellTags}>
+                        {(meta.tags ?? []).map((tag) => (
+                          <span className={styles.tag} key={tag}>
+                            {tag}
+                          </span>
+                        ))}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       </div>
     </div>

@@ -3,9 +3,11 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import type { ProblemMeta } from '@/domain/types';
+import type { ProblemStatus } from '@/domain/progress';
 import { useSubmitStore } from '@/stores/submitStore';
 import { useDraftStore } from '@/stores/draftStore';
-import { ProblemListPage, sortProblems } from '@/features/problems/ProblemListPage';
+import type { ListQuery } from '@/features/problems/useListQuery';
+import { filterProblems, ProblemListPage, sortProblems } from '@/features/problems/ProblemListPage';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -61,12 +63,34 @@ const meta = (over: Partial<ProblemMeta> & { id: string }): ProblemMeta => ({
 // 확인한 값이다(task-5a-brief.md의 표와 동일) — meta.json 세 개를 직접 읽어
 // level·order가 표와 같은지도 확인했다. sortProblems 유닛 테스트와
 // ProblemListPage 통합 테스트가 함께 쓴다.
+// tags는 5b가 추가했다 — problems/00{1,2,3}-*/meta.json을 직접 읽어 확인한
+// 실제 값이다(001:배열, 002:문자열, 003:정렬). task-5b-brief.md의 검색어 표가
+// 전제하는 값과 같다 — 문자열/정렬은 제목과 태그 양쪽에 걸리고, 배열은
+// 태그에서만(제목 "짝수만 더하기"에는 없음), 짝수는 제목에서만(태그
+// "배열"에는 없음) 걸린다. sortProblems는 tags를 보지 않으므로 이 추가가
+// 기존 정렬 단언에 영향을 주지 않는다.
 const REAL_METAS = [
-  meta({ id: '001-even-sum', title: '짝수만 더하기', level: 0, order: 1 }),
-  meta({ id: '002-string-repeat', title: '문자열 n번 이어붙이기', level: 0, order: 2 }),
-  meta({ id: '003-unique-sort', title: '중복 제거 후 정렬', level: 1, order: 3 }),
+  meta({ id: '001-even-sum', title: '짝수만 더하기', level: 0, order: 1, tags: ['배열'] }),
+  meta({ id: '002-string-repeat', title: '문자열 n번 이어붙이기', level: 0, order: 2, tags: ['문자열'] }),
+  meta({ id: '003-unique-sort', title: '중복 제거 후 정렬', level: 1, order: 3, tags: ['정렬'] }),
 ];
 const shortId = (m: ProblemMeta) => m.id.slice(0, 3);
+
+// useListQuery.ts의 DEFAULT_QUERY는 export되지 않는다(listQuery.test.ts도
+// 같은 이유로 자신만의 복사본을 둔다) — 필터 테스트에서 "이 필드만 바꾼
+// 쿼리"를 짧게 만들기 위한 로컬 기준점.
+const DEFAULT_QUERY: ListQuery = { q: '', level: null, status: null, tag: null, sort: 'level', dir: 'asc' };
+
+/** 리액트 컨트롤드 input/select는 `.value =`로만 바꾸면 리액트의 값 추적기가
+ *  "안 바뀌었다"고 보고 onChange를 안 부른다 — 테스트 전용 라이브러리
+ *  (React Testing Library의 fireEvent 등)가 쓰는 것과 같은 우회: 프로토타입의
+ *  value setter를 직접 호출해 추적기를 건너뛴다. */
+function setControlValue(el: HTMLInputElement | HTMLSelectElement, value: string): void {
+  const proto = el instanceof HTMLSelectElement ? window.HTMLSelectElement.prototype : window.HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+  setter?.call(el, value);
+  el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }));
+}
 
 describe('sortProblems', () => {
   // 저장소가 돌려주는 순서(order 순)와 난이도 순서가 어긋나는 픽스처여야
@@ -134,6 +158,97 @@ describe('sortProblems', () => {
   it('같은 난이도 두 문제는 level desc에서도 order 오름차순을 유지한다', () => {
     const input = [meta({ id: 'zzz', level: 5, order: 1 }), meta({ id: 'aaa', level: 5, order: 9 })];
     expect(sortProblems(input, 'level', 'desc').map((m) => m.id)).toEqual(['zzz', 'aaa']);
+  });
+});
+
+describe('filterProblems', () => {
+  // status 필터를 쓰지 않는 테스트에서는 statusOf가 뭘 리턴해도 결과에
+  // 영향이 없다 — 항상 'untried'로 고정해 둔다.
+  const anyStatus = (): ProblemStatus => 'untried';
+
+  describe('q(검색어) — 제목·태그', () => {
+    // 브리프의 검색어 표(브리프 작성자가 실제 데이터로 확인한 값)와 정확히
+    // 같은 네 조합. 문자열·정렬만 쓰면 "제목만 보는" 구현도 통과하고 태그
+    // 검색은 검증 없이 출하된다 — 배열·짝수가 그 구현을 갈라낸다.
+    it('제목에서만 걸린다 (짝수 → 001, 태그 "배열"에는 없음)', () => {
+      expect(filterProblems(REAL_METAS, { ...DEFAULT_QUERY, q: '짝수' }, anyStatus).map(shortId)).toEqual(['001']);
+    });
+
+    it('태그에서만 걸린다 (배열 → 001, 제목 "짝수만 더하기"에는 없음)', () => {
+      expect(filterProblems(REAL_METAS, { ...DEFAULT_QUERY, q: '배열' }, anyStatus).map(shortId)).toEqual(['001']);
+    });
+
+    it('제목과 태그 모두에 걸리는 경우 (문자열 → 002)', () => {
+      expect(filterProblems(REAL_METAS, { ...DEFAULT_QUERY, q: '문자열' }, anyStatus).map(shortId)).toEqual(['002']);
+    });
+
+    it('제목과 태그 모두에 걸리는 다른 경우 (정렬 → 003)', () => {
+      expect(filterProblems(REAL_METAS, { ...DEFAULT_QUERY, q: '정렬' }, anyStatus).map(shortId)).toEqual(['003']);
+    });
+
+    // 결정(브리프가 요구한 대로 정하고 테스트로 고정): 대소문자를 구분하지
+    // 않고, 앞뒤 공백은 무시한다. 한글에는 대소문자가 없어 라틴 문자가 있는
+    // 합성 픽스처로 따로 확인해야 한다.
+    it('대소문자를 구분하지 않는다', () => {
+      const metas = [meta({ id: 'a', title: 'Even Sum', tags: ['Array'] })];
+      expect(filterProblems(metas, { ...DEFAULT_QUERY, q: 'EVEN' }, anyStatus).map((m) => m.id)).toEqual(['a']);
+      expect(filterProblems(metas, { ...DEFAULT_QUERY, q: 'array' }, anyStatus).map((m) => m.id)).toEqual(['a']);
+    });
+
+    it('검색어 앞뒤 공백은 무시한다', () => {
+      expect(filterProblems(REAL_METAS, { ...DEFAULT_QUERY, q: '  짝수  ' }, anyStatus).map(shortId)).toEqual(['001']);
+    });
+
+    it('공백만 있는 검색어는 필터 없음과 같다', () => {
+      expect(filterProblems(REAL_METAS, { ...DEFAULT_QUERY, q: '   ' }, anyStatus)).toEqual(REAL_METAS);
+    });
+  });
+
+  it('level로 거른다', () => {
+    expect(filterProblems(REAL_METAS, { ...DEFAULT_QUERY, level: 1 }, anyStatus).map(shortId)).toEqual(['003']);
+  });
+
+  // statusOf를 주입해 네 상태를 전부 만든다(브리프 Step 1) — deriveStatus를
+  // 다시 부르지 않고 호출자가 정한 그대로 쓰는지를 본다.
+  it('status로 거른다 — 네 상태 모두', () => {
+    const metas = (['solved', 'failed', 'wip', 'untried'] as const).map((id) => meta({ id }));
+    const statusOf = (m: ProblemMeta): ProblemStatus => m.id as ProblemStatus;
+    for (const s of ['solved', 'failed', 'wip', 'untried'] as const) {
+      expect(filterProblems(metas, { ...DEFAULT_QUERY, status: s }, statusOf).map((m) => m.id)).toEqual([s]);
+    }
+  });
+
+  describe('tag', () => {
+    it('tag로 거른다', () => {
+      expect(filterProblems(REAL_METAS, { ...DEFAULT_QUERY, tag: '정렬' }, anyStatus).map(shortId)).toEqual(['003']);
+    });
+
+    // ProblemMeta.tags는 선택 필드다. undefined인 메타가 태그 필터에서
+    // 터지지 않고 조용히 빠지는지 — tags가 있는 메타와 함께 둬서 "둘 다
+    // 우연히 통과해도 티가 안 나는" 상황을 피한다.
+    it('tags가 undefined인 메타는 태그 필터에서 터지지 않고 조용히 빠진다', () => {
+      const metas = [meta({ id: 'no-tags' }), meta({ id: 'has-tag', tags: ['x'] })];
+      expect(() => filterProblems(metas, { ...DEFAULT_QUERY, tag: 'x' }, anyStatus)).not.toThrow();
+      expect(filterProblems(metas, { ...DEFAULT_QUERY, tag: 'x' }, anyStatus).map((m) => m.id)).toEqual(['has-tag']);
+    });
+
+    it('태그 필터가 없으면 tags가 undefined인 메타도 그대로 남는다', () => {
+      const metas = [meta({ id: 'no-tags' })];
+      expect(filterProblems(metas, DEFAULT_QUERY, anyStatus)).toEqual(metas);
+    });
+  });
+
+  // 필터 둘 이상은 AND로 합쳐진다 — OR로 구현해도 통과하는 픽스처는 아무것도
+  // 막지 못한다. b도 q에는 걸리지만 level이 달라 AND에서는 빠져야 한다.
+  // OR 구현이면 a·b 둘 다 남는다.
+  it('필터 둘 이상은 AND로 합쳐진다', () => {
+    const metas = [meta({ id: 'a', title: '검색어포함', level: 0 }), meta({ id: 'b', title: '검색어포함', level: 9 })];
+    const result = filterProblems(metas, { ...DEFAULT_QUERY, q: '검색어', level: 0 }, anyStatus);
+    expect(result.map((m) => m.id)).toEqual(['a']);
+  });
+
+  it('전부 기본값이면 입력을 그대로(내용 동일) 돌려준다', () => {
+    expect(filterProblems(REAL_METAS, DEFAULT_QUERY, anyStatus)).toEqual(REAL_METAS);
   });
 });
 
@@ -286,5 +401,189 @@ describe('ProblemListPage', () => {
     expect(title.pressed).toBe('true');
     expect(title.dir).toBe('desc'); // 화살표가 실제로 뒤집히는지(리뷰 Important 1)
     expect(liveRegionText(host)).toBe('제목 기준 내림차순으로 정렬 중');
+  });
+
+  // 5b: 검색·필터 컨트롤 배선.
+  const searchInput = (host: HTMLElement): HTMLInputElement => host.querySelector('input[type="search"]')!;
+
+  // 라벨은 각 select를 감싸는 <label>의 sr-only 글자다 — select 자신의
+  // textContent(선택된 옵션 글자)가 섞여도 sr-only 문구는 그 select에만
+  // 있어 유일하게 찾힌다.
+  const selectByLabel = (host: HTMLElement, labelText: string): HTMLSelectElement =>
+    Array.from(host.querySelectorAll('label')).find((l) => (l.textContent ?? '').includes(labelText))!.querySelector(
+      'select',
+    )!;
+
+  const filterLiveText = (host: HTMLElement): string => (host.querySelector('[data-live="filter-count"]')?.textContent ?? '').trim();
+
+  it('검색 입력은 제목에 없어도 태그에 걸리는 문제를 찾는다', async () => {
+    const host = await renderList(REAL_METAS);
+
+    await act(async () => {
+      setControlValue(searchInput(host), '배열');
+    });
+
+    expect(renderedTitles(host)).toEqual(['짝수만 더하기']);
+  });
+
+  it('난이도 select를 바꾸면 그 난이도만 남고, select는 고른 값을 보여준다', async () => {
+    const host = await renderList(REAL_METAS);
+
+    await act(async () => {
+      setControlValue(selectByLabel(host, '난이도 필터'), '1');
+    });
+
+    expect(renderedTitles(host)).toEqual(['중복 제거 후 정렬']);
+    expect(selectByLabel(host, '난이도 필터').value).toBe('1');
+  });
+
+  // 상태 필터는 행의 마크가 쓰는 것과 같은 유도(레코드·draft)를 거쳐야
+  // 한다 — 별도 구현이면 마크와 필터 결과가 어긋날 수 있다.
+  it('상태 select는 행의 마크와 같은 유도로 걸러낸다', async () => {
+    useSubmitStore.setState({
+      records: {
+        solved: { passed: 2, total: 2, at: 1, solvedAt: 1 },
+        failed: { passed: 1, total: 2, at: 1 },
+      },
+    });
+    useDraftStore.setState({ drafts: { wip: 'function solution() {}' } });
+    const host = await renderList(['solved', 'failed', 'wip', 'untried'].map((id) => meta({ id })));
+
+    await act(async () => {
+      setControlValue(selectByLabel(host, '상태 필터'), 'wip');
+    });
+
+    const hrefs = Array.from(host.querySelectorAll('a[data-status]')).map((a) => a.getAttribute('href'));
+    expect(hrefs).toEqual(['/problems/wip']);
+  });
+
+  // 태그 목록은 metas에서 모은다 — 하드코딩이면 이 희귀 태그가 옵션에
+  // 나타나지 않는다.
+  it('태그 select 옵션은 metas의 tags에서 모은다', async () => {
+    const host = await renderList([meta({ id: 'x', title: '커스텀 문제', tags: ['희귀태그'] })]);
+    const select = selectByLabel(host, '태그 필터');
+    const optionTexts = Array.from(select.querySelectorAll('option')).map((o) => o.textContent);
+    expect(optionTexts).toContain('희귀태그');
+
+    await act(async () => {
+      setControlValue(select, '희귀태그');
+    });
+    expect(renderedTitles(host)).toEqual(['커스텀 문제']);
+  });
+
+  it('tags가 undefined인 메타가 섞여 있어도 태그 필터가 죽지 않는다', async () => {
+    const host = await renderList([
+      meta({ id: 'no-tags', title: '태그 없음' }),
+      meta({ id: 'has-tag', title: '태그 있음', tags: ['x'] }),
+    ]);
+
+    await act(async () => {
+      setControlValue(selectByLabel(host, '태그 필터'), 'x');
+    });
+
+    expect(renderedTitles(host)).toEqual(['태그 있음']);
+  });
+
+  // 0건 URL로 직접 들어가는 경우(리뷰 포커스 5 · 브리프 Step 5) — 빈 표가
+  // 아니라 안내와 초기화가 보여야 하고, 라이브 리전이 비시각 사용자에게도
+  // 같은 사실을 알려야 한다.
+  it('필터로 0건이 되면 안내와 초기화 버튼이 보이고, 누르면 네 필터가 모두 풀린다', async () => {
+    // 네 필터를 동시에 걸되, 각각 **따로도** 0건 쪽으로 좁히는 값을 쓴다
+    // (q='짝수'→001만, level=1→003만, status='solved'→기본은 전부 미시도라
+    // 아무것도 없음, tag='정렬'→003만) — resetFilters가 넷 중 하나라도
+    // 빼먹으면 그 필터 하나만으로도 3건 전체가 돌아오지 못한다. 손으로
+    // encode하지 않고 URLSearchParams로 만든다.
+    const search = new URLSearchParams({ q: '짝수', level: '1', status: 'solved', tag: '정렬' }).toString();
+    const host = await renderList(REAL_METAS, `/?${search}`);
+
+    expect(host.querySelectorAll('a[data-status]')).toHaveLength(0);
+    expect(host.textContent).toContain('조건에 맞는 문제가 없습니다');
+    expect(filterLiveText(host)).toBe('조건에 맞는 문제가 없습니다');
+
+    const resetBtn = Array.from(host.querySelectorAll('button')).find((b) => (b.textContent ?? '').trim() === '필터 초기화')!;
+    await act(async () => {
+      resetBtn.click();
+    });
+
+    expect(host.querySelectorAll('a[data-status]')).toHaveLength(3);
+    // 필터가 모두 기본값으로 돌아오면 필터 라이브 리전도 다시 비워진다.
+    expect(filterLiveText(host)).toBe('');
+    // 검색창도 리셋된다 — 로컬 qInput이 URL과 별개로 남아 있지 않은지.
+    expect(searchInput(host).value).toBe('');
+  });
+
+  // 스펙 226행: 진척도 줄은 필터와 무관하게 전체 기준이다. 0건이 되어도
+  // (분자가 있는데도) 분모·분자가 줄지 않는지까지 본다.
+  it('필터를 걸어 0건이 되어도 진척도 줄은 전체 기준으로 남는다', async () => {
+    useSubmitStore.setState({
+      records: { '001-even-sum': { passed: 1, total: 1, at: 1, solvedAt: 1 } },
+    });
+    const host = await renderList(REAL_METAS, '/?level=9');
+
+    expect(host.textContent).toContain('3문제 중 1개 통과');
+  });
+
+  // 검색창은 예외적으로 로컬 상태(qInput)를 쓴다 — 화면은 즉시 반응하되
+  // URL 커밋만 디바운스한다(ProblemListPage.tsx의 SEARCH_DEBOUNCE_MS 주석
+  // 참조). router.state.location.search로 "진짜 URL"을 직접 들여다봐야
+  // 이 시차를 확인할 수 있다.
+  it('검색 입력은 즉시 필터링하지만 URL 커밋은 디바운스한다', async () => {
+    const router = createMemoryRouter([{ path: '/', element: <ProblemListPage />, loader: () => REAL_METAS }], {
+      initialEntries: ['/'],
+    });
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    await act(async () => {
+      createRoot(host).render(<RouterProvider router={router} />);
+    });
+
+    await act(async () => {
+      setControlValue(searchInput(host), '배열');
+    });
+
+    // 즉시: 행은 이미 걸러졌다.
+    expect(renderedTitles(host)).toEqual(['짝수만 더하기']);
+    // 즉시: 그런데 URL은 아직 비어 있다 — 디바운스 중.
+    expect(router.state.location.search).toBe('');
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    expect(new URLSearchParams(router.state.location.search).get('q')).toBe('배열');
+  });
+
+  // 디바운스 타이머가 돌고 있는 중에 다른 필터(select, 즉시 커밋)를 바꾸면
+  // — 두 커밋이 모두 같은 query 객체를 머지하는 setQuery를 쓰므로 —
+  // 타이머가 오래된 클로저를 들고 있으면 select로 바꾼 값이 되돌아갈 수
+  // 있다. useEffect 의존성에 query.q·setQuery를 넣어 막은 그 회귀를 고정한다.
+  it('디바운스가 끝나기 전에 다른 필터를 바꿔도 디바운스가 끝나면 둘 다 반영된다', async () => {
+    const router = createMemoryRouter([{ path: '/', element: <ProblemListPage />, loader: () => REAL_METAS }], {
+      initialEntries: ['/'],
+    });
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    await act(async () => {
+      createRoot(host).render(<RouterProvider router={router} />);
+    });
+
+    await act(async () => {
+      setControlValue(searchInput(host), '배열'); // 디바운스 타이머 시작, 아직 안 커밋
+    });
+    await act(async () => {
+      setControlValue(selectByLabel(host, '난이도 필터'), '0'); // select는 즉시 커밋
+    });
+
+    let params = new URLSearchParams(router.state.location.search);
+    expect(params.get('level')).toBe('0');
+    expect(params.get('q')).toBeNull(); // q는 아직 디바운스 중이어야 한다
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    params = new URLSearchParams(router.state.location.search);
+    expect(params.get('level')).toBe('0');
+    expect(params.get('q')).toBe('배열');
   });
 });

@@ -200,10 +200,16 @@ export function ProblemListPage() {
     effectiveQuery.level !== null ||
     effectiveQuery.status !== null ||
     effectiveQuery.tag !== null;
-  // 필터가 없으면 비워 둔다(OutputPanel.tsx의 live region과 같은 패턴 —
-  // 항상 떠 있되 알릴 내용이 있을 때만 채운다). 0건은 눈으로 보이는 안내
-  // 문구와 같은 글자를 그대로 읽어 준다.
-  const filterStatusText = !hasFilter ? '' : visible.length === 0 ? '조건에 맞는 문제가 없습니다' : `${visible.length}건 표시 중`;
+  // 필터가 없거나, 있어도 결과가 있으면 비워 둔다(OutputPanel.tsx의 live
+  // region과 같은 패턴 — 항상 떠 있되 알릴 내용이 있을 때만 채운다). 0건일
+  // 때만 눈으로 보이는 .empty 블록(아래)과 같은 글자를 그대로 읽어 준다.
+  // 전에는 0건이 아닐 때도 "N건 표시 중"을 읽어 줬는데, 그 분기는 (a)
+  // 브리프가 요청하지 않았고 (b) 아무 테스트도 지키지 않았고(문자열을
+  // 'XXXX'로 바꿔도 유닛·e2e 둘 다 green이었다) (c) 키 입력마다 polite
+  // region이 발화해 타이핑 내내 안내가 울리는 역효과가 있었다(리뷰
+  // Minor 5) — 지웠다. "필터가 없을 때도 안내가 비어 있는가"는
+  // task-5b-report.md에 결정으로 남긴다.
+  const filterStatusText = hasFilter && visible.length === 0 ? '조건에 맞는 문제가 없습니다' : '';
 
   // 태그·난이도 옵션은 지금의 metas에서 모은다(하드코딩 금지) — 문제가
   // 늘거나 줄어도 select가 따라간다. status는 ProblemStatus가 고정된 네
@@ -384,10 +390,18 @@ export function ProblemListPage() {
           </p>
           {visible.length === 0 ? (
             <div className={styles.empty}>
-              <p>조건에 맞는 문제가 없습니다</p>
-              <button type="button" className={styles.resetBtn} onClick={resetFilters}>
-                필터 초기화
-              </button>
+              {/* 0건에는 서로 다른 두 원인이 있다 — 필터가 걸러냈거나, 로더가
+                  처음부터 빈 목록을 돌려줬거나(리뷰 Minor 6). 필터가 없는데도
+                  이 블록이 보인다면 후자다. 안내 문구를 원인에 맞게 나누고,
+                  "필터 초기화" 버튼은 되돌릴 필터가 있을 때만 보인다 —
+                  전에는 항상 떠 있어서 문제가 아예 없는 목록에서도 눌러도
+                  아무 일 하지 않는 버튼이 보였다. */}
+              <p>{hasFilter ? '조건에 맞는 문제가 없습니다' : '아직 등록된 문제가 없습니다'}</p>
+              {hasFilter ? (
+                <button type="button" className={styles.resetBtn} onClick={resetFilters}>
+                  필터 초기화
+                </button>
+              ) : null}
             </div>
           ) : (
             <ul className={styles.rows} onKeyDown={onKeyDown}>

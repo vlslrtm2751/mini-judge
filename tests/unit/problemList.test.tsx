@@ -437,6 +437,22 @@ describe('ProblemListPage', () => {
     expect(selectByLabel(host, '난이도 필터').value).toBe('1');
   });
 
+  // 리뷰 Minor 5: 필터가 걸려 있어도 결과가 0건이 아니면 필터 라이브
+  // region은 비어 있어야 한다 — 전에는 `${visible.length}건 표시 중`을
+  // 읊었는데, 그 문구를 'XXXX'로 바꿔도 유닛·e2e 둘 다 green이라 아무것도
+  // 지키지 못했다(검증 없이 출하됐다는 뜻이고, 키 입력마다 발화하는 역효과도
+  // 있었다). 0건이 아닌 필터링 결과에서 region이 비는지를 직접 고정한다.
+  it('필터가 걸려도 결과가 있으면 필터 라이브 region은 비어 있다', async () => {
+    const host = await renderList(REAL_METAS);
+
+    await act(async () => {
+      setControlValue(selectByLabel(host, '난이도 필터'), '0'); // 001·002 두 건 남는다(0건 아님)
+    });
+
+    expect(renderedTitles(host)).toHaveLength(2);
+    expect(filterLiveText(host)).toBe('');
+  });
+
   // 태그 derivation(아래 '태그 select 옵션은...')은 이미 고정돼 있지만
   // 난이도는 아니었다 — `:211`을 `const levels = [0, 1, 2, 3, 4, 5]`로
   // 바꿔도 유닛 124/124·e2e 40/40이 그대로 green이었다(리뷰 Minor 4).
@@ -548,6 +564,37 @@ describe('ProblemListPage', () => {
     expect(filterLiveText(host)).toBe('');
     // 검색창도 리셋된다 — 로컬 qInput이 URL과 별개로 남아 있지 않은지.
     expect(searchInput(host).value).toBe('');
+  });
+
+  // 리뷰 Minor 6: 0건에는 "필터가 걸러냈다"와 "로더가 원래 빈 목록을 돌려줬다"
+  // 두 원인이 있는데, `visible.length === 0`만 보고 하나의 블록을 그리면
+  // 구분이 안 된다. 필터가 하나도 없는데 0건이면 — 되돌릴 필터가 없으므로
+  // "필터 초기화" 버튼이 아무 일도 하지 않아야 정상인데, 버튼 자체가 그냥
+  // 떠 있으면 사용자가 눌러볼 이유를 준다. 안내 문구도 원인에 맞게
+  // 갈라야 한다. `hasFilter && …`로만 바꿔도(초기화 버튼을 숨기지 않고)
+  // 유닛·e2e가 그대로 green이라 이 분기 자체가 지금까지 검증되지 않았다.
+  it('문제가 아예 없으면(필터와 무관) 다른 안내를 보여주고 초기화 버튼은 없다', async () => {
+    const host = await renderList([]);
+
+    expect(host.querySelectorAll('a[data-status]')).toHaveLength(0);
+    expect(host.textContent).toContain('아직 등록된 문제가 없습니다');
+    expect(host.textContent).not.toContain('조건에 맞는 문제가 없습니다');
+    expect(Array.from(host.querySelectorAll('button')).some((b) => (b.textContent ?? '').trim() === '필터 초기화')).toBe(
+      false,
+    );
+  });
+
+  // 대조군 — 필터가 걸려 0건이면(바로 위 테스트와 반대) 반드시 "조건에 맞는
+  // 문제가 없습니다"와 초기화 버튼이 함께 보인다. 두 테스트가 함께 있어야
+  // `hasFilter` 분기 자체가 실제로 양쪽을 가르는지가 고정된다.
+  it('필터로 0건이면(문제는 있음) "조건에 맞는 문제가 없습니다"와 초기화 버튼이 함께 보인다', async () => {
+    const host = await renderList(REAL_METAS, '/?level=9');
+
+    expect(host.textContent).toContain('조건에 맞는 문제가 없습니다');
+    expect(host.textContent).not.toContain('아직 등록된 문제가 없습니다');
+    expect(Array.from(host.querySelectorAll('button')).some((b) => (b.textContent ?? '').trim() === '필터 초기화')).toBe(
+      true,
+    );
   });
 
   // 스펙 226행: 진척도 줄은 필터와 무관하게 전체 기준이다. 0건이 되어도

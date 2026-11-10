@@ -50,8 +50,14 @@ function sortButtonState(host: HTMLElement, label: '제목' | '난이도') {
   };
 }
 
+// 정렬 region에 data-live="sort-status"를 달아 필터 region과 명시적으로
+// 구분한다(ProblemListPage.tsx) — 전에는 첫 [role="status"]를 그냥
+// 집었는데, 그게 맞는 이유는 "정렬 region이 DOM에서 필터 region보다 먼저
+// 나온다"는 순서에 불과했다(리뷰 Minor 9). 두 region이 하나로 합쳐지거나
+// 순서가 바뀌는 변형에서도 이 헬퍼가 여전히 정렬 region만 읽는지는 아래
+// data-live 선택자가 보장한다.
 const liveRegionText = (host: HTMLElement): string =>
-  (host.querySelector('[role="status"]')?.textContent ?? '').trim();
+  (host.querySelector('[data-live="sort-status"]')?.textContent ?? '').trim();
 
 const meta = (over: Partial<ProblemMeta> & { id: string }): ProblemMeta => ({
   title: over.id,

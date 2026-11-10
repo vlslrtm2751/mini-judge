@@ -378,7 +378,7 @@ export function ProblemListPage() {
               이름이 달라지는 것 말고는 비시각 사용자에게 아무 신호가 없다.
               OutputPanel.tsx:43의 채점 완료 live region과 같은 패턴: 항상
               떠 있는 상태로 두고 내용이 바뀔 때만 읽히게 한다. */}
-          <p className="sr-only" role="status" aria-live="polite">
+          <p className="sr-only" role="status" aria-live="polite" data-live="sort-status">
             {`${SORT_LABEL[query.sort]} 기준 ${query.dir === 'asc' ? '오름차순' : '내림차순'}으로 정렬 중`}
           </p>
           {/* 정렬 live region과 별개로 둔다 — 하나로 합치면 5a가 고정한 그

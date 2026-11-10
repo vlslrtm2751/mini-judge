@@ -260,7 +260,12 @@ export function ProblemListPage() {
 
         <div className={styles.filters}>
           <label className={styles.search}>
-            <span className="sr-only">문제 검색</span>
+            {/* sr-only 글자가 보이는 placeholder와 같아야 한다 — 전에는
+                "문제 검색"이라 써서, 눈으로 보이는 글자("제목·태그 검색")가
+                접근 가능한 이름에 전혀 나타나지 않았다(Label-in-Name,
+                SC 2.5.3 위반). SortHeaderButton의 주석이 적어 둔 대로 이
+                저장소는 2.5.3을 의도적으로 지킨다 — 같은 글자로 맞춘다. */}
+            <span className="sr-only">제목·태그 검색</span>
             <input
               type="search"
               placeholder="제목·태그 검색"

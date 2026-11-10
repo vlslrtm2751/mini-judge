@@ -183,10 +183,14 @@ test('목록이 길어지면 문서가 아니라 목록이 스크롤된다', asy
 // 표: 문자열·정렬은 제목과 태그 둘 다에 걸려 "제목만 보는" 구현도 통과시킨다
 // — 배열(태그에서만, 제목 "짝수만 더하기"에는 없음)과 짝수(제목에서만, 태그
 // "배열"에는 없음)로 각각 단언해야 태그 검색이 실제로 검증된다.
+// 접근 가능한 이름은 보이는 placeholder("제목·태그 검색")와 같다 — sr-only
+// 글자를 다른 말("문제 검색")로 따로 두면 보이는 글자가 이름에 전혀 안
+// 나타나 Label-in-Name(SC 2.5.3) 위반이다(리뷰 Minor 14, SortHeaderButton의
+// 주석이 이 저장소가 2.5.3을 의도적으로 지킨다는 선례).
 test('검색 입력은 제목에 없어도 태그에 걸리는 검색어를 찾는다 (배열 → 001)', async ({ page }) => {
   await page.goto('#/');
 
-  await page.getByLabel('문제 검색').fill('배열');
+  await page.getByLabel('제목·태그 검색').fill('배열');
 
   await expect(rows(page)).toHaveCount(1);
   await expect(rows(page)).toContainText('짝수만 더하기');
@@ -199,7 +203,7 @@ test('검색 입력은 제목에 없어도 태그에 걸리는 검색어를 찾�
 test('검색 입력은 태그에 없어도 제목에 걸리는 검색어를 찾는다 (짝수 → 001)', async ({ page }) => {
   await page.goto('#/');
 
-  await page.getByLabel('문제 검색').fill('짝수');
+  await page.getByLabel('제목·태그 검색').fill('짝수');
 
   await expect(rows(page)).toHaveCount(1);
   await expect(rows(page)).toContainText('짝수만 더하기');

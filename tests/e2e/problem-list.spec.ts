@@ -357,7 +357,35 @@ test('좁은 화면에서 제목이 잘리지 않고 카드로 쌓인다', async
     expect(metrics.scroll, `행 ${i}의 제목이 잘렸다: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(
       metrics.client,
     );
+
+    // 이름이 약속하는 "쌓인다"를 실제로 고정한다. 이게 없으면 태그 열을
+    // 줄여 잘림만 없앤 구현도 같은 이름으로 통과한다 — 테스트 이름을 믿는
+    // 다음 사람이 속는다.
+    const stacked = await rows(page)
+      .nth(i)
+      .evaluate((row) => {
+        const t = row.querySelector('[class*="cellTitle"]')!.getBoundingClientRect();
+        const lv = row.querySelector('[class*="cellLevel"]')!.getBoundingClientRect();
+        return { titleY: Math.round(t.y), levelY: Math.round(lv.y) };
+      });
+    expect(stacked.levelY, `행 ${i}가 쌓이지 않았다: ${JSON.stringify(stacked)}`).toBeGreaterThan(
+      stacked.titleY,
+    );
   }
+
+  // 열 머리는 카드에서 의미가 없어 display:none으로 지운다. 보이기만 감추는
+  // 방식이면 정렬 버튼이 스크린리더·탭에는 남아 "숨겨졌는데 닿는" 상태가
+  // 된다(Task 5a가 고친 버그와 같은 부류). 요소가 트리에서 빠졌는지를 본다.
+  await expect(page.locator('[class*="head"]').first()).toBeHidden();
+  const focusableLeft = await page.evaluate(() => {
+    const head = document.querySelector('[class*="head"]');
+    if (!head) return -1;
+    return [...head.querySelectorAll('button')].filter((b) => {
+      b.focus();
+      return document.activeElement === b;
+    }).length;
+  });
+  expect(focusableLeft, '열 머리의 정렬 버튼이 숨겨진 채 포커스된다').toBe(0);
 
   // 문서가 가로로 넘치지 않는지도 회귀 방지로 함께 둔다 — 다만 지금도(카드
   // 레이아웃 전에도) 참이므로 이 단언 하나만으로는 카드 레이아웃을 증명하지

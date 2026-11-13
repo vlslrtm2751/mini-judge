@@ -31,7 +31,7 @@
    유일한 수단이다(스펙 174행). flex:1로 남는 공간을 모두 차지해 ".back"을
    줄 끝에 고정한다 — 예전 ".picker"의 margin-left:auto와 같은 효과를
    반대쪽(가변 요소)에서 낸다. */
-.title {
+.problemTitle {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -46,7 +46,7 @@
    모양(투명 배경, --ink-2 → 호버 --ink)을 이 모듈에서 독립적으로 정의한다 —
    CSS Modules는 파일 경계를 넘어 클래스를 공유하지 않는다 — 목록 화면도
    같은 이유로 problemList.module.css에 자기 몫을 따로 갖고 있다. */
-.back {
+.backLink {
   flex: none;
   font-size: 13px;
   font-weight: 600;
@@ -57,7 +57,7 @@
   white-space: nowrap;
 }
 
-.back:hover {
+.backLink:hover {
   color: var(--ink);
   background: var(--sheet);
 }

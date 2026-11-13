@@ -159,13 +159,14 @@ test('Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이 �
       const s = getComputedStyle(el);
       return {
         label: `${el.tagName}:${(el.getAttribute('class') ?? '').replace(/_[a-z0-9]{5,}_\d+/gi, '').trim() || (el.textContent ?? '').trim().slice(0, 8)}`,
+        text: (el.textContent ?? '').trim().slice(0, 12),
         // 에디터는 자체 커서로 포커스를 드러내고 테마가 outline을 끈다.
         inEditor: Boolean(el.closest('.cm-editor')),
         ring: s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) >= 2,
       };
     });
 
-  const visited: { label: string; ring: boolean }[] = [];
+  const visited: { label: string; text: string; ring: boolean }[] = [];
   for (let i = 0; i < 14; i += 1) {
     await page.keyboard.press('Tab');
     const info = await probe();
@@ -175,7 +176,7 @@ test('Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이 �
       await page.keyboard.press('Escape');
       continue;
     }
-    visited.push({ label: info.label, ring: info.ring });
+    visited.push({ label: info.label, text: info.text, ring: info.ring });
   }
 
   const noRing = visited.filter((v) => !v.ring);
@@ -191,7 +192,20 @@ test('Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이 �
   // 보호를 유지한다. 이 테스트는 IDE 화면만 돈다(목록 화면의 컨트롤은
   // problem-list.spec.ts가 따로 본다).
   const distinct = [...new Set(visited.map((v) => v.label))];
-  expect(distinct.some((l) => l.startsWith('A:')), `목록 링크 미방문: ${distinct}`).toBe(true);
+  // 클래스까지 보고 좁힌다. 그냥 'A:'로 두면 문제 본문(problem.md)에 링크가
+  // 하나라도 생기는 순간 상단바 링크가 없어도 통과한다 — MarkdownView가
+  // 작성자가 쓴 마크다운을 그대로 렌더하기 때문이다. 지금은 세 문제 모두
+  // 링크가 없지만 그 우연에 기대지 않는다.
+  // 링크는 클래스가 아니라 **글자**로 찾는다. 라벨의 클래스 부분은 CSS Modules
+  // 해시를 벗기는 정규식을 타기 때문에 클래스 이름을 바꾸면 모양이 통째로
+  // 달라진다(실측: `.back`일 때 `A:_back`, `.backLink`로 바꾸니 `A:qdtp_97`).
+  // 그리고 그냥 `A:`로 두면 문제 본문(problem.md)에 링크가 하나라도 생기는
+  // 순간 상단바 링크가 없어도 통과한다 — MarkdownView가 작성자 마크다운을
+  // 그대로 렌더하기 때문이다.
+  expect(
+    visited.some((v) => v.label.startsWith('A:') && v.text === '← 목록'),
+    `목록 링크 미방문: ${JSON.stringify(visited.map((v) => `${v.label}|${v.text}`))}`,
+  ).toBe(true);
   expect(distinct.filter((l) => l.startsWith('DIV')).length, `스플리터 미방문: ${distinct}`).toBeGreaterThanOrEqual(2);
   expect(distinct.filter((l) => l.startsWith('BUTTON')).length, `버튼 부족: ${distinct}`).toBeGreaterThanOrEqual(5);
 });

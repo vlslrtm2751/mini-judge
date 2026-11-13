@@ -41,7 +41,7 @@ test('switching problems clears the previous editor content and results', async 
 test('switching problems via a direct hash change still rebuilds the editor', async ({ page }) => {
   // 위 테스트는 목록을 거쳐 문제를 바꾸므로 '/' → '/problems/:id'로 라우트가
   // 바뀌어 IdePage가 매번 언마운트·재마운트된다 — useState가 처음부터 다시
-  // 초기화되니 IdePage.tsx:39-42의 loadedProblemId 재조정은 전혀 실행되지
+  // 초기화되니 IdePage.tsx:38-41의 loadedProblemId 재조정은 전혀 실행되지
   // 않아도 테스트가 통과한다. 그 코드가 실제로 지키는 경로는 '/problems/:id'
   // 안에서 id만 바뀌는 경우다 — 주소창을 직접 바꾸거나, 문제 링크를 따라가거나,
   // 두 문제 URL 사이를 뒤로/앞으로 가는 경우. 셋 다 같은 라우트에 머물러

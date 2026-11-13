@@ -336,3 +336,52 @@ test('IDE 상단바에 현재 문제 제목이 글자로 보인다', async ({ pa
   await expect(chromeHeader(page)).toContainText('문자열 n번 이어붙이기');
   await expect(chromeHeader(page).getByRole('link', { name: '← 목록', exact: true })).toBeVisible();
 });
+
+// Task 7: 760px 이하에서는 표 행이 카드로 바뀐다. 실측(390×844, HEAD bc45945):
+// grid-template-columns가 28px 48px 52px 180px라 태그 열이 180px를 고정으로
+// 쥐는 동안 제목 열만 48px로 찌그러진다. 세 제목이 필요로 하는 폭은 각각
+// 73·118·90px(가장 긴 "문자열 n번 이어붙이기"가 118px)인데 48px만 받아 전부
+// "짝수만...", "문자열...", "중복 ..."으로 잘린다 — 문제를 구분할 수 없다.
+// scrollWidth > clientWidth로 직접 잡는다. 세 행 모두 본다 — 길이가 서로 달라
+// 가장 긴 제목이 안 잡히면 의미가 없다.
+test('좁은 화면에서 제목이 잘리지 않고 카드로 쌓인다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('#/');
+  await expect(rows(page)).toHaveCount(3);
+
+  const titleCells = page.locator('a[data-status] [class*="cellTitle"]');
+  const count = await titleCells.count();
+  expect(count).toBe(3);
+  for (let i = 0; i < count; i += 1) {
+    const metrics = await titleCells.nth(i).evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+    expect(metrics.scroll, `행 ${i}의 제목이 잘렸다: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(
+      metrics.client,
+    );
+  }
+
+  // 문서가 가로로 넘치지 않는지도 회귀 방지로 함께 둔다 — 다만 지금도(카드
+  // 레이아웃 전에도) 참이므로 이 단언 하나만으로는 카드 레이아웃을 증명하지
+  // 못한다. 핵심은 위 scrollWidth <= clientWidth다.
+  const doc = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }));
+  expect(doc.scroll).toBeLessThanOrEqual(doc.client + 1);
+});
+
+// iOS Safari는 포커스되는 입력의 font-size가 16px 미만이면 화면을 확대한다.
+// 이 지식은 Task 6이 지운 chrome.module.css의 .picker select 규칙에 있었다 —
+// 그 select가 사라지며 지식도 같이 사라졌고, 같은 함정이 목록의 검색 입력 +
+// 필터 select 세 개로 옮겨왔다. 넷 다 실측 13px이다.
+test('검색 입력과 필터 select 세 개의 글자 크기가 16px 이상이라 iOS가 확대하지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('#/');
+
+  const controls = page.locator('input[type="search"], [class*="select"] select');
+  await expect(controls).toHaveCount(4);
+  const count = await controls.count();
+  for (let i = 0; i < count; i += 1) {
+    const fontSize = await controls.nth(i).evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    expect(fontSize, `컨트롤 ${i}의 font-size가 16px 미만이다`).toBeGreaterThanOrEqual(16);
+  }
+});

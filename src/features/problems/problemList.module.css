@@ -319,3 +319,61 @@
   padding: 1px 7px;
   white-space: nowrap;
 }
+
+/* 760px 이하 — 표 행을 쌓인 카드로 바꾼다(기존 작업 영역과 같은 경계,
+   workspace/chrome.module.css:197 참조). 실측(390×844): 위 desktop
+   grid-template-columns(28px minmax(0,1fr) 52px minmax(0,180px))는 태그 열이
+   180px를 고정으로 쥐는 동안 제목 열을 48px로 찌그러뜨려 세 제목이 전부
+   잘린다. DOM 순서(마크·제목·난이도·태그)는 그대로 두고 grid-template-areas로
+   두 줄로 재배치한다 — 첫 줄 마크+제목, 둘째 줄 난이도·태그(스펙 186행).
+   마크는 첫 줄에만 두고 둘째 줄 첫 칸은 '.'(빈 셀)로 비워, 난이도·태그가
+   제목 밑에 맞춰 들여쓰여 보이게 한다.
+
+   헤더 행(.head)은 카드에는 의미가 없어 감춘다. display:none을 쓰는 데는
+   이유가 있다 — 제목·난이도 열 머리는 정렬 버튼이고, aria-hidden처럼
+   "시각적으로만" 숨기는 방법을 썼다면 포커스 가능한 버튼이 화면에서는
+   사라진 채 탭으로는 계속 닿는 상태가 된다(Task 5a가 고친 것과 같은 종류의
+   버그 — ProblemListPage.tsx의 .head 관련 주석 참조). display:none은
+   접근성 트리와 탭 순서에서도 함께 빠지므로 안전하다. 모바일에서 정렬 UI를
+   다른 형태로 옮기지 않고 그냥 뺀다 — 스펙 186행이 모바일에서 남기는
+   컨트롤로 검색·필터만 지정했고 정렬은 포함하지 않는다(task-7-report.md에
+   결정으로 남긴다). URL 쿼리로 정렬을 바꾸는 길 자체는 남아 있다. */
+@media (max-width: 760px) {
+  .head {
+    display: none;
+  }
+
+  .row {
+    grid-template-columns: 28px auto minmax(0, 1fr);
+    grid-template-areas:
+      'mark title title'
+      '. level tags';
+    row-gap: 4px;
+    padding-block: 10px;
+  }
+
+  .cellMark {
+    grid-area: mark;
+  }
+
+  .cellTitle {
+    grid-area: title;
+  }
+
+  .cellLevel {
+    grid-area: level;
+  }
+
+  .cellTags {
+    grid-area: tags;
+  }
+
+  /* 16px 미만이면 iOS Safari가 포커스 시 화면을 확대한다. 이 지식은 Task 6이
+     지운 chrome.module.css의 .picker select 규칙에 있었다 — 그 select가
+     사라지며 같은 함정이 이 네 컨트롤(검색 입력 + 필터 select 세 개)로
+     옮겨왔다. 데스크톱의 13px 밀도는 그대로 두고 여기서만(모바일) 올린다. */
+  .search input,
+  .select select {
+    font-size: 16px;
+  }
+}

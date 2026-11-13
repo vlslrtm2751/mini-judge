@@ -27,41 +27,39 @@
   white-space: nowrap;
 }
 
-.picker {
-  margin-left: auto;
-  position: relative;
+/* 현재 문제 제목(글자). select가 사라지면서 "지금 어디 있는지"를 보여줄
+   유일한 수단이다(스펙 174행). flex:1로 남는 공간을 모두 차지해 ".back"을
+   줄 끝에 고정한다 — 예전 ".picker"의 margin-left:auto와 같은 효과를
+   반대쪽(가변 요소)에서 낸다. */
+.problemTitle {
+  flex: 1;
   min-width: 0;
-}
-
-.picker::after {
-  content: '';
-  position: absolute;
-  right: 13px;
-  top: 50%;
-  width: 7px;
-  height: 7px;
-  border-right: 1.5px solid var(--ink-2);
-  border-bottom: 1.5px solid var(--ink-2);
-  transform: translateY(-70%) rotate(45deg);
-  pointer-events: none;
-}
-
-.picker select {
-  appearance: none;
-  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
   font-weight: 500;
-  max-width: 100%;
-  padding: 7px 34px 7px 12px;
-  border: 1px solid var(--rule-strong);
-  border-radius: 8px;
-  background: var(--sheet);
-  color: var(--ink);
-  cursor: pointer;
+  color: var(--ink-2);
 }
 
-.picker select:disabled {
-  opacity: 0.6;
-  cursor: progress;
+/* "← 목록" — 목록으로 돌아가는 링크. Button.module.css의 .ghost와 같은
+   모양(투명 배경, --ink-2 → 호버 --ink)을 이 모듈에서 독립적으로 정의한다 —
+   CSS Modules는 파일 경계를 넘어 클래스를 공유하지 않는다 — 목록 화면도
+   같은 이유로 problemList.module.css에 자기 몫을 따로 갖고 있다. */
+.backLink {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  text-decoration: none;
+  padding: 7px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.backLink:hover {
+  color: var(--ink);
+  background: var(--sheet);
 }
 
 .actions {
@@ -199,13 +197,6 @@
 @media (max-width: 760px) {
   .brandLang {
     display: none;
-  }
-
-  .picker select {
-    /* 16px 미만이면 iOS Safari가 포커스 시 화면을 확대한다 */
-    font-size: 16px;
-    max-width: 62vw;
-    text-overflow: ellipsis;
   }
 
   .kbdHint {

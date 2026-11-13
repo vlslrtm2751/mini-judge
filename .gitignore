@@ -35,3 +35,7 @@ src/**/*.d.ts
 # 로컬 목업 사본 (아티팩트 KELeNQQq68XbhWaFWRisTe의 복사본). 저장소에 들어갈
 # 물건이 아니고, eslint.config.js도 이 경로를 무시하도록 설정돼 있다.
 prototype/
+
+# superpowers 작업 스크래치 (계획 원장, 브레인스토밍 목업). 저장소에 들어갈
+# 물건이 아니다. docs/superpowers/ 아래의 스펙·계획 문서는 추적한다.
+.superpowers/

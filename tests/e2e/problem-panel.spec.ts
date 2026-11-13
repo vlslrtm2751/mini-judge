@@ -16,7 +16,7 @@ const scroller = (page: import('@playwright/test').Page) =>
 
 test('문제 패널을 최소 폭으로 줄여도 가로로 넘치지 않는다', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 800 });
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await scroller(page).waitFor();
   await dragToMinimum(page);
 
@@ -31,7 +31,7 @@ test('문제 패널을 최소 폭으로 줄여도 가로로 넘치지 않는다'
 });
 
 test('본문의 긴 인라인 코드가 문제 패널을 가로로 밀지 않는다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await scroller(page).waitFor();
 
   // 현재 세 문제에는 이런 토큰이 없지만, 끊기지 않는 긴 식별자는 문제 설명에
@@ -54,7 +54,7 @@ test('본문의 긴 인라인 코드가 문제 패널을 가로로 밀지 않는
 });
 
 test('문제 제목이 한 번만 렌더된다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   // meta.json의 title과 problem.md의 선두 h1이 같은 제목이라 둘 다 그리면 겹친다.
   await expect(page.getByRole('heading', { name: '짝수만 더하기' })).toHaveCount(1);
 });

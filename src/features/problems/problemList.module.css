@@ -1,0 +1,379 @@
+/* 문제 목록 홈. 사용자가 고른 목업 "표 — 밀도 우선"을 따른다 — 열 네 개
+   (상태·제목·난이도·태그), 얇은 행 구분선, 호버에 --sheet.
+   행 전체가 링크여야 해서 <table>을 쓸 수 없으므로, 머리줄과 행이 같은
+   grid-template-columns를 공유해 열을 맞춘다. */
+
+/* workspace의 .page와 같은 불변식: 뷰포트를 정확히 채우고 문서는 스크롤되지
+   않는다. 넘침은 안쪽 .scroller가 떠안는다.
+   position:relative도 workspace와 같은 이유로 필수다 — 행마다 있는 전역
+   .sr-only(상태 글자)가 position:absolute인데, 포지션된 조상이 없으면
+   컨테이닝 블록이 초기 컨테이닝 블록이 되어 이 overflow:hidden이 그것을
+   자르지 못하고(절대 위치 요소는 컨테이닝 블록 사슬에 있는 조상만이 자른다)
+   목록이 길어질 때 문서 전체가 스크롤된다. 전에는 행마다 .cellMark에
+   position:relative를 줬는데, .page 하나를 포지션하면 모든 행이 한 번에
+   해결되고 다른 sr-only 자리(OutputPanel 등)에도 같은 방어가 미친다. */
+.page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  padding-block: 10px 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* 읽기 좋은 최대 폭으로 가운데 정렬. 문제가 세 개뿐일 때 넓은 화면 왼쪽에
+   세 줄만 붙어 있으면 허공에 뜬 것처럼 보인다. 진척도 줄도 같은 폭 안에
+   둬야 표와 한 덩어리로 읽힌다. */
+.inner {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 38px;
+  flex: none;
+}
+
+.brandName {
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.brandLang {
+  font-family: var(--f-code);
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.progress {
+  margin: 0 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* 비율은 데이터에서 오므로 인라인 style 없이 <progress>의 value/max로 넘긴다. */
+.bar {
+  appearance: none;
+  width: 90px;
+  height: 4px;
+  flex: none;
+  border: 0;
+  border-radius: 2px;
+  background: var(--rule);
+}
+
+.bar::-webkit-progress-bar {
+  background: var(--rule);
+  border-radius: 2px;
+}
+
+.bar::-webkit-progress-value {
+  background: var(--ok);
+  border-radius: 2px;
+}
+
+.bar::-moz-progress-bar {
+  background: var(--ok);
+  border-radius: 2px;
+}
+
+/* 검색 입력 + 세 select. flex-wrap만으로 좁은 폭에 대응한다 — 모바일
+   미디어쿼리는 Task 7의 몫이라 여기서는 쓰지 않는다. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: none;
+}
+
+.search {
+  position: relative;
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.search input {
+  width: 100%;
+  font-size: 13px;
+  padding: 7px 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: var(--sheet);
+  color: var(--ink);
+}
+
+.search input::placeholder {
+  color: var(--ink-3);
+}
+
+/* 네이티브 select의 기본 화살표를 끄고 테두리로 직접 그리는 트릭 —
+   난이도·상태·태그 세 필터 select가 공유한다(스펙 235행). */
+.select {
+  position: relative;
+  flex: none;
+  min-width: 0;
+}
+
+.select::after {
+  content: '';
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--ink-2);
+  border-bottom: 1.5px solid var(--ink-2);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.select select {
+  appearance: none;
+  font-size: 13px;
+  font-weight: 500;
+  max-width: 100%;
+  padding: 7px 28px 7px 10px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: var(--sheet);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* 0건 상태 — 안내 문구 + 필터 초기화. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 16px;
+  color: var(--ink-2);
+  font-size: 13px;
+  text-align: center;
+}
+
+.resetBtn {
+  appearance: none;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+
+.resetBtn:hover {
+  background: var(--sheet-2);
+}
+
+/* flex: 0 1 auto — 행이 적으면 내용만큼만 차지해 위쪽에 모이고, 많아지면
+   남은 높이까지만 늘어난 뒤 그 안에서 스크롤한다. */
+.scroller {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.head,
+.row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 52px minmax(0, 180px);
+  align-items: center;
+  gap: 10px;
+  padding-inline: 10px;
+}
+
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-height: 28px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-3);
+  white-space: nowrap;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* 제목·난이도 열 머리의 정렬 버튼. .head의 11px/500/--ink-3 글자 모양을
+   그대로 물려받고 버튼의 기본 테두리·배경만 지운다 — 평소에는 글자처럼
+   보이다가 포커스·호버에서만 상호작용 가능함이 드러난다. */
+.sortBtn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sortBtn:hover {
+  color: var(--ink);
+}
+
+/* 위 .select::after(필터 드롭다운 화살표)와
+   같은 테두리 삼각형 트릭. 장식일 뿐이다 — 같은 방향 정보는 버튼의
+   aria-label이 스크린리더에 전달한다. */
+.sortArrow {
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+}
+
+.sortArrow[data-dir='asc'] {
+  transform: rotate(-135deg);
+}
+
+.sortArrow[data-dir='desc'] {
+  transform: rotate(45deg);
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  min-height: 40px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 13px;
+  border-bottom: 1px solid var(--sheet-2);
+}
+
+.row:hover {
+  background: var(--sheet);
+}
+
+/* 행이 스크롤 영역의 폭을 꽉 채우므로 전역 :focus-visible의 outline-offset
+   2px이 가로로 넘쳐 목록에 가로 스크롤바를 만든다. 링을 안쪽에 그린다. */
+.row:focus-visible {
+  outline-offset: -2px;
+}
+
+.cellMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cellTitle {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cellLevel {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.cellTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tag {
+  font-size: 10px;
+  color: var(--ink-3);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+/* 760px 이하 — 표 행을 쌓인 카드로 바꾼다(기존 작업 영역과 같은 경계,
+   workspace/chrome.module.css:197 참조). 실측(390×844): 위 desktop
+   grid-template-columns(28px minmax(0,1fr) 52px minmax(0,180px))는 태그 열이
+   180px를 고정으로 쥐는 동안 제목 열을 48px로 찌그러뜨려 세 제목이 전부
+   잘린다. DOM 순서(마크·제목·난이도·태그)는 그대로 두고 grid-template-areas로
+   두 줄로 재배치한다 — 첫 줄 마크+제목, 둘째 줄 난이도·태그(스펙 186행).
+   마크는 첫 줄에만 두고 둘째 줄 첫 칸은 '.'(빈 셀)로 비워, 난이도·태그가
+   제목 밑에 맞춰 들여쓰여 보이게 한다.
+
+   헤더 행(.head)은 카드에는 의미가 없어 감춘다. display:none을 쓰는 데는
+   이유가 있다 — 제목·난이도 열 머리는 정렬 버튼이고, aria-hidden처럼
+   "시각적으로만" 숨기는 방법을 썼다면 포커스 가능한 버튼이 화면에서는
+   사라진 채 탭으로는 계속 닿는 상태가 된다(Task 5a가 고친 것과 같은 종류의
+   버그 — ProblemListPage.tsx의 .head 관련 주석 참조). display:none은
+   접근성 트리와 탭 순서에서도 함께 빠지므로 안전하다. 모바일에서 정렬 UI를
+   다른 형태로 옮기지 않고 그냥 뺀다 — 스펙 186행이 모바일에서 남기는
+   컨트롤로 검색·필터만 지정했고 정렬은 포함하지 않는다(task-7-report.md에
+   결정으로 남긴다). URL 쿼리로 정렬을 바꾸는 길 자체는 남아 있다. */
+@media (max-width: 760px) {
+  .head {
+    display: none;
+  }
+
+  .row {
+    grid-template-columns: 28px auto minmax(0, 1fr);
+    grid-template-areas:
+      'mark title title'
+      '. level tags';
+    row-gap: 4px;
+    padding-block: 10px;
+  }
+
+  .cellMark {
+    grid-area: mark;
+  }
+
+  .cellTitle {
+    grid-area: title;
+  }
+
+  .cellLevel {
+    grid-area: level;
+  }
+
+  .cellTags {
+    grid-area: tags;
+  }
+
+  /* 16px 미만이면 iOS Safari가 포커스 시 화면을 확대한다. 이 지식은 Task 6이
+     지운 chrome.module.css의 .picker select 규칙에 있었다 — 그 select가
+     사라지며 같은 함정이 이 네 컨트롤(검색 입력 + 필터 select 세 개)로
+     옮겨왔다. 데스크톱의 13px 밀도는 그대로 두고 여기서만(모바일) 올린다. */
+  .search input,
+  .select select {
+    font-size: 16px;
+  }
+}

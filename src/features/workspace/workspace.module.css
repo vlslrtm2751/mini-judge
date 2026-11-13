@@ -1,7 +1,14 @@
 /* height, not min-height: the workspace fills the viewport exactly so the
    resizable groups have a definite height to divide and only inner panels
    scroll. With min-height the ActionBar was pushed off-screen. */
+/* position:relative는 장식이 아니라 필수다 — 전역 .sr-only(예:
+   OutputPanel의 채점 완료 live region)는 position:absolute인데, 포지션된
+   조상이 없으면 컨테이닝 블록이 초기 컨테이닝 블록이 되어 이 .page의
+   overflow:hidden이 그것을 자르지 못하고 문서 전체가 스크롤될 수 있다
+   (절대 위치 요소는 컨테이닝 블록 사슬에 있는 조상만이 자른다). .page를
+   포지션해 그 사슬을 여기서 끊는다. */
 .page {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 10px;

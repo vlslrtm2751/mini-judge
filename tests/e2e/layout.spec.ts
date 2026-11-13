@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 // instead of below it, because it only checked that strings were present.
 
 test('problem panel gets a usable share of the viewport', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await expect(page.getByRole('heading', { name: '짝수만 더하기' }).first()).toBeVisible();
 
   const viewport = page.viewportSize();
@@ -20,7 +20,7 @@ test('problem panel gets a usable share of the viewport', async ({ page }) => {
 });
 
 test('output panel sits below the editor, not beside it', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
 
   const editor = page.locator('.cm-editor').first();
   const outputTab = page.getByRole('button', { name: '결과' });
@@ -36,7 +36,7 @@ test('output panel sits below the editor, not beside it', async ({ page }) => {
 });
 
 test('the page itself does not scroll', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await expect(page.getByRole('heading', { name: '짝수만 더하기' }).first()).toBeVisible();
 
   const overflow = await page.evaluate(() => {
@@ -50,8 +50,10 @@ test('the page itself does not scroll', async ({ page }) => {
 
 test('좁은 화면에서 상단바와 액션바가 가로로 넘치지 않는다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
-  await page.locator('select').waitFor();
+  await page.goto('#/problems/001-even-sum');
+  // 앱이 렌더되기를 기다리는 것뿐이다. 문제 선택기는 목록 화면으로 옮겨갔으므로
+  // IDE에 확실히 있는 요소를 쓴다(좁은 화면의 기본 탭이 '코드'라 에디터가 뜬다).
+  await page.locator('.cm-content').waitFor();
 
   const doc = await page.evaluate(() => ({
     scroll: document.documentElement.scrollWidth,
@@ -64,7 +66,7 @@ test('좁은 화면에서 상단바와 액션바가 가로로 넘치지 않는�
 });
 
 test('action bar is reachable without scrolling', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await expect(page.getByRole('button', { name: '테스트 실행' })).toBeInViewport();
   await expect(page.getByRole('button', { name: '제출' })).toBeInViewport();
 });

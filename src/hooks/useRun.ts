@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { Problem, RunKind } from '@/domain/types';
 import { useRunStore } from '@/stores/runStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useSubmitStore } from '@/stores/submitStore';
 import { judge } from '@/app/services';
 import { formatCaseTerminal, formatLogs } from '@/runner/formatNode';
 
@@ -10,6 +11,7 @@ export function useRun(problem: Problem) {
   const runStore = useRunStore();
   const setOutputTab = useUiStore((s) => s.setOutputTab);
   const setMobileView = useUiStore((s) => s.setMobileView);
+  const record = useSubmitStore((s) => s.record);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
 
@@ -53,9 +55,13 @@ export function useRun(problem: Problem) {
       });
 
       runStore.finish(report);
+      // 중지됐거나 치명적 오류로 끝난 실행은 '제출한 적 있음'이 아니다 — 기록하지 않는다.
+      if (kind === 'submit' && !report.cancelled && !report.fatal) {
+        record(problem.meta.id, report.passed, report.total);
+      }
       controllerRef.current = null;
     },
-    [problem, runStore, setMobileView, setOutputTab],
+    [problem, runStore, setMobileView, setOutputTab, record],
   );
 
   return {

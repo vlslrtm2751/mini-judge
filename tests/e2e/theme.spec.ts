@@ -5,14 +5,14 @@ import { expect, test } from '@playwright/test';
 test.use({ colorScheme: 'light' });
 
 test('OS가 라이트를 선호해도 다크 팔레트로 렌더된다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   // --paper #0d1218
   expect(bg).toBe('rgb(13, 18, 24)');
 });
 
 test('디자인 토큰이 다크 값으로 정의돼 있다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   const tokens = await page.evaluate(() => {
     const s = getComputedStyle(document.documentElement);
     const read = (name: string) => s.getPropertyValue(name).trim();
@@ -22,7 +22,7 @@ test('디자인 토큰이 다크 값으로 정의돼 있다', async ({ page }) =
 });
 
 test('패널이 카드로 렌더된다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   // CSS Modules가 클래스 이름을 해시하므로 부분 일치로 찾는다. Panel의
   // className은 중첩된 div에 적용되므로 [data-panel] 자신이 아닐 수 있다.
   const card = page.locator('[class*="pane"]').first();
@@ -37,7 +37,7 @@ test('패널이 카드로 렌더된다', async ({ page }) => {
 });
 
 test('에디터의 모든 구문 토큰이 배경과 구분된다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.locator('.cm-content').waitFor();
 
   const result = await page.evaluate(() => {
@@ -74,7 +74,7 @@ test('에디터의 모든 구문 토큰이 배경과 구분된다', async ({ pag
 });
 
 test('읽어야 하는 텍스트가 실제 렌더된 배경 위에서 AA 대비를 넘는다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.locator('.cm-content').fill(`// 주석도 읽혀야 한다
 function solution(n) { return n; }`);
   await page.getByRole('button', { name: '제출' }).click();
@@ -148,9 +148,9 @@ function solution(n) { return n; }`);
 });
 
 test('Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이 보인다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   // 앱이 렌더되기 전에 Tab을 누르면 포커스할 대상이 없어 body에 머문다.
-  await page.locator('select').waitFor();
+  await page.locator('.cm-content').waitFor();
 
   const probe = () =>
     page.evaluate(() => {
@@ -159,13 +159,14 @@ test('Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이 �
       const s = getComputedStyle(el);
       return {
         label: `${el.tagName}:${(el.getAttribute('class') ?? '').replace(/_[a-z0-9]{5,}_\d+/gi, '').trim() || (el.textContent ?? '').trim().slice(0, 8)}`,
+        text: (el.textContent ?? '').trim().slice(0, 12),
         // 에디터는 자체 커서로 포커스를 드러내고 테마가 outline을 끈다.
         inEditor: Boolean(el.closest('.cm-editor')),
         ring: s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) >= 2,
       };
     });
 
-  const visited: { label: string; ring: boolean }[] = [];
+  const visited: { label: string; text: string; ring: boolean }[] = [];
   for (let i = 0; i < 14; i += 1) {
     await page.keyboard.press('Tab');
     const info = await probe();
@@ -175,23 +176,42 @@ test('Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이 �
       await page.keyboard.press('Escape');
       continue;
     }
-    visited.push({ label: info.label, ring: info.ring });
+    visited.push({ label: info.label, text: info.text, ring: info.ring });
   }
 
   const noRing = visited.filter((v) => !v.ring);
   expect(noRing, `포커스 링이 없는 요소: ${JSON.stringify(noRing)}`).toEqual([]);
 
-  // 선택기·스플리터·탭·액션 버튼을 모두 지나왔는지 — 한 종류만 보고 끝내지 않는다.
-  // 순회는 한 바퀴를 돌아 같은 요소를 다시 만날 수 있으므로 고유 개수로 센다.
-  // 등장 횟수로 세면 같은 버튼을 두 번 만난 것만으로 임계값을 넘길 수 있다.
+  // 목록 링크·스플리터·탭·액션 버튼을 모두 지나왔는지 — 한 종류만 보고 끝내지
+  // 않는다. 순회는 한 바퀴를 돌아 같은 요소를 다시 만날 수 있으므로 고유 개수로
+  // 센다. 등장 횟수로 세면 같은 버튼을 두 번 만난 것만으로 임계값을 넘길 수 있다.
+  //
+  // Task 6까지는 여기가 SELECT(문제 선택기)였다. 그 선택기가 "← 목록"
+  // 링크로 바뀌면서 이 화면에 select가 하나도 남지 않았다 — 같은 자리를
+  // 링크로 바꿔 "상단바의 이동 수단을 탭으로 지나며 링이 보인다"는 원래
+  // 보호를 유지한다. 이 테스트는 IDE 화면만 돈다(목록 화면의 컨트롤은
+  // problem-list.spec.ts가 따로 본다).
   const distinct = [...new Set(visited.map((v) => v.label))];
-  expect(distinct.some((l) => l.startsWith('SELECT')), `선택기 미방문: ${distinct}`).toBe(true);
+  // 클래스까지 보고 좁힌다. 그냥 'A:'로 두면 문제 본문(problem.md)에 링크가
+  // 하나라도 생기는 순간 상단바 링크가 없어도 통과한다 — MarkdownView가
+  // 작성자가 쓴 마크다운을 그대로 렌더하기 때문이다. 지금은 세 문제 모두
+  // 링크가 없지만 그 우연에 기대지 않는다.
+  // 링크는 클래스가 아니라 **글자**로 찾는다. 라벨의 클래스 부분은 CSS Modules
+  // 해시를 벗기는 정규식을 타기 때문에 클래스 이름을 바꾸면 모양이 통째로
+  // 달라진다(실측: `.back`일 때 `A:_back`, `.backLink`로 바꾸니 `A:qdtp_97`).
+  // 그리고 그냥 `A:`로 두면 문제 본문(problem.md)에 링크가 하나라도 생기는
+  // 순간 상단바 링크가 없어도 통과한다 — MarkdownView가 작성자 마크다운을
+  // 그대로 렌더하기 때문이다.
+  expect(
+    visited.some((v) => v.label.startsWith('A:') && v.text === '← 목록'),
+    `목록 링크 미방문: ${JSON.stringify(visited.map((v) => `${v.label}|${v.text}`))}`,
+  ).toBe(true);
   expect(distinct.filter((l) => l.startsWith('DIV')).length, `스플리터 미방문: ${distinct}`).toBeGreaterThanOrEqual(2);
   expect(distinct.filter((l) => l.startsWith('BUTTON')).length, `버튼 부족: ${distinct}`).toBeGreaterThanOrEqual(5);
 });
 
 test('클래스 이름과 정규식 리터럴에도 색이 입혀진다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.locator('.cm-content').fill('const m = new Map(); const re = /[0-9]+/g; class Foo {}');
 
   // CM6는 스타일이 걸린 범위에만 span을 만든다. 색이 없는 토큰은 아예 span으로
@@ -206,7 +226,7 @@ test('클래스 이름과 정규식 리터럴에도 색이 입혀진다', async 
 });
 
 test('버튼 세 variant가 서로 다른 위계로 보이고 disabled가 드러난다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
   await page.getByRole('button', { name: '제출' }).waitFor();
 
   const styles = await page.evaluate(() => {
@@ -247,7 +267,7 @@ test('버튼 세 variant가 서로 다른 위계로 보이고 disabled가 드러
 });
 
 test('채점이 끝나면 라이브 리전이 결과를 알린다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('#/problems/001-even-sum');
 
   // 라이브 리전은 내용이 바뀌기 전부터 떠 있어야 읽힌다.
   const status = page.locator('[role="status"]');

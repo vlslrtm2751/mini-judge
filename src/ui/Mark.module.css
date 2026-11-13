@@ -1,0 +1,111 @@
+/* 빨간 펜 채점 마크. 통과는 비뚤어진 동그라미, 실패는 사선.
+   output 기능의 .case[data-status] 아래에 묶여 있던 모양 규칙을 여기로
+   옮기고, 루트 요소 자신의 data-mark 속성으로 건다 — 어떤 기능이든 이
+   속성만 달면 재사용할 수 있다. */
+.mark {
+  width: 24px;
+  height: 24px;
+  position: relative;
+  flex: none;
+}
+
+.mark::before {
+  content: '';
+  position: absolute;
+}
+
+[data-mark='pending']::before {
+  left: 9px;
+  top: 9px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rule-strong);
+}
+
+[data-mark='running']::before {
+  inset: 4px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-wash);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+[data-mark='pass']::before {
+  inset: 1px;
+  border: 2.5px solid var(--pen);
+  border-radius: 50% 44% 54% 47%;
+  transform: rotate(-14deg);
+  animation: ink 0.22s ease-out;
+}
+
+/* 오답·오류·시간 초과가 공유하는 획 모양. 색과 각도는 아래에서 갈린다.
+   스펙 5절은 셋을 한 규칙으로 묶었지만, 성공 기준은 "통과/실패/시간초과/에러를
+   색과 마크로 구분"하라고 한다. 기준 쪽을 따른다. */
+[data-mark='fail']::before,
+[data-mark='error']::before,
+[data-mark='timeout']::before {
+  left: 1px;
+  right: 1px;
+  top: 10.5px;
+  height: 3px;
+  border-radius: 2px;
+  animation: ink 0.22s ease-out;
+}
+
+/* 오답: 빨간 펜 사선 */
+[data-mark='fail']::before {
+  background: var(--pen);
+  transform: rotate(-58deg);
+}
+
+/* 오류: 사선 두 개를 겹친 ×. 틀린 답과 실행 자체의 실패를 모양으로 가른다. */
+[data-mark='error']::before {
+  background: var(--pen);
+  transform: rotate(45deg);
+}
+
+[data-mark='error']::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 10.5px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--pen);
+  transform: rotate(-45deg);
+  animation: ink 0.22s ease-out;
+}
+
+/* 시간 초과: 같은 사선이되 경고색 */
+[data-mark='timeout']::before {
+  background: var(--warn);
+  transform: rotate(-58deg);
+}
+
+/* 작업 중: 점 세 개. 목록 화면에서 아직 손대지 않은 항목을 가리킬 때 쓴다. */
+[data-mark='wip']::before {
+  content: '···';
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: var(--ink-2);
+}
+
+/* 'none'은 규칙이 없다 — .mark의 빈 상자만 남아 칸 너비를 유지한다. */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ink {
+  from {
+    opacity: 0;
+    transform: rotate(-14deg) scale(0.6);
+  }
+}

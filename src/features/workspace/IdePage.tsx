@@ -1,5 +1,5 @@
 import { useLoaderData } from 'react-router-dom';
-import type { Problem, ProblemMeta } from '@/domain/types';
+import type { Problem } from '@/domain/types';
 import { useIsPhone } from '@/hooks/useIsPhone';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useRun } from '@/hooks/useRun';
@@ -8,7 +8,7 @@ import { EditorPanel } from '@/features/editor/EditorPanel';
 import { OutputPanel } from '@/features/output/OutputPanel';
 import { ActionBar } from './ActionBar';
 import { MobileTabs } from './MobileTabs';
-import { ProblemPicker } from './ProblemPicker';
+import { WorkspaceHeader } from './WorkspaceHeader';
 import { useDraftStore } from '@/stores/draftStore';
 import { useEffect, useRef, useState } from 'react';
 import styles from './workspace.module.css';
@@ -18,13 +18,11 @@ import { useUiStore } from '@/stores/uiStore';
 
 interface LoaderData {
   problem: Problem;
-  list: ProblemMeta[];
 }
 
 export function IdePage() {
-  const { problem, list } = useLoaderData() as LoaderData;
+  const { problem } = useLoaderData() as LoaderData;
   const isPhone = useIsPhone();
-  const runState = useRunStore();
   const mobileView = useUiStore((s) => s.mobileView);
   const initialCode = useDraftStore((s) => s.drafts[problem.meta.id] ?? problem.starter);
   const setDraft = useDraftStore((s) => s.setDraft);
@@ -64,7 +62,7 @@ export function IdePage() {
 
   const content = (
     <>
-      <ProblemPicker list={list} selected={problem.meta.id} disabled={runState.phase === 'running'} />
+      <WorkspaceHeader title={problem.meta.title} />
       {isPhone ? (
         <div className={styles.mobileStack}>
           <MobileTabs />

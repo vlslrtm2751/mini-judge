@@ -181,11 +181,17 @@ test('Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이 �
   const noRing = visited.filter((v) => !v.ring);
   expect(noRing, `포커스 링이 없는 요소: ${JSON.stringify(noRing)}`).toEqual([]);
 
-  // 선택기·스플리터·탭·액션 버튼을 모두 지나왔는지 — 한 종류만 보고 끝내지 않는다.
-  // 순회는 한 바퀴를 돌아 같은 요소를 다시 만날 수 있으므로 고유 개수로 센다.
-  // 등장 횟수로 세면 같은 버튼을 두 번 만난 것만으로 임계값을 넘길 수 있다.
+  // 목록 링크·스플리터·탭·액션 버튼을 모두 지나왔는지 — 한 종류만 보고 끝내지
+  // 않는다. 순회는 한 바퀴를 돌아 같은 요소를 다시 만날 수 있으므로 고유 개수로
+  // 센다. 등장 횟수로 세면 같은 버튼을 두 번 만난 것만으로 임계값을 넘길 수 있다.
+  //
+  // Task 6까지는 여기가 SELECT(문제 선택기)였다. 그 선택기가 "← 목록"
+  // 링크로 바뀌면서 이 화면에 select가 하나도 남지 않았다 — 같은 자리를
+  // 링크로 바꿔 "상단바의 이동 수단을 탭으로 지나며 링이 보인다"는 원래
+  // 보호를 유지한다. 이 테스트는 IDE 화면만 돈다(목록 화면의 컨트롤은
+  // problem-list.spec.ts가 따로 본다).
   const distinct = [...new Set(visited.map((v) => v.label))];
-  expect(distinct.some((l) => l.startsWith('SELECT')), `선택기 미방문: ${distinct}`).toBe(true);
+  expect(distinct.some((l) => l.startsWith('A:')), `목록 링크 미방문: ${distinct}`).toBe(true);
   expect(distinct.filter((l) => l.startsWith('DIV')).length, `스플리터 미방문: ${distinct}`).toBeGreaterThanOrEqual(2);
   expect(distinct.filter((l) => l.startsWith('BUTTON')).length, `버튼 부족: ${distinct}`).toBeGreaterThanOrEqual(5);
 });

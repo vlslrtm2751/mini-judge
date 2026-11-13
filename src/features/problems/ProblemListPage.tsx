@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
-import { Link, useLoaderData } from 'react-router-dom';
+import { Link, useLoaderData, useLocation } from 'react-router-dom';
 import type { ProblemMeta } from '@/domain/types';
 import type { ProblemStatus } from '@/domain/progress';
 import { countSolved, deriveStatus } from '@/domain/progress';
@@ -152,6 +152,9 @@ export function ProblemListPage() {
   const drafts = useDraftStore((s) => s.drafts);
   // 필터·정렬의 유일한 출처는 URL 쿼리다 — 컴포넌트에 따로 상태를 두지 않는다.
   const [query, setQuery] = useListQuery();
+  // 행 링크가 "지금 보던 목록"을 라우터 state로 싣는다(아래 <Link> 주석 참조).
+  // 해시 라우터에서도 useLocation().search는 해시 안의 쿼리를 돌려준다.
+  const location = useLocation();
 
   // 검색창만 예외다(바로 아래 두 useEffect). 나머지 세 필터(level·status·tag)
   // 는 select의 discrete한 change 한 번이 곧 커밋이라 5a의 정렬 버튼과 같은
@@ -409,7 +412,18 @@ export function ProblemListPage() {
                 const status = statusOf(meta);
                 return (
                   <li key={meta.id}>
-                    <Link className={styles.row} to={`/problems/${meta.id}`} data-status={status}>
+                    {/* 보던 목록 상태를 라우터 state로 들려 보낸다 — IDE 상단바의
+                        "← 목록"이 그걸 읽어 같은 필터·정렬로 돌아온다
+                        (WorkspaceHeader.tsx, 스펙 176행). URL이 아니라 state로
+                        나르는 이유는 문제 URL을 공유했을 때 남의 필터가 따라가지
+                        않게 하기 위해서다 — 직접 들어온 사람에게는 state가 없고
+                        그 경우 "← 목록"은 필터 없는 목록으로 간다. */}
+                    <Link
+                      className={styles.row}
+                      to={`/problems/${meta.id}`}
+                      state={{ listSearch: location.search }}
+                      data-status={status}
+                    >
                       <span className={styles.cellMark}>
                         <Mark kind={MARK[status]} />
                         <span className="sr-only">{STATUS_LABEL[status]}</span>

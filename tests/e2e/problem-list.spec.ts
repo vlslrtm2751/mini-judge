@@ -11,6 +11,12 @@ const rows = (page: import('@playwright/test').Page) => page.locator('a[data-sta
 /** 목록의 스크롤 영역. 문서가 아니라 이쪽이 넘침을 떠안아야 한다. */
 const scroller = (page: import('@playwright/test').Page) => page.locator('[class*="scroller"]').first();
 
+/** IDE 상단바(WorkspaceHeader). "← 목록" 링크와 현재 문제 제목이 여기 있다.
+ *  ProblemMeta.tsx도 문제 제목을 <header><h1>으로 그리지만 그 <header>는
+ *  클래스가 없다 — 클래스가 붙은 <header>는 WorkspaceHeader뿐이라 그것으로
+ *  좁혀야 둘을 구분할 수 있다. */
+const chromeHeader = (page: import('@playwright/test').Page) => page.locator('header[class]');
+
 test('/를 열면 문제 세 개가 행으로 보인다', async ({ page }) => {
   await page.goto('#/');
 
@@ -283,4 +289,49 @@ test('필터를 건 상태에서도 진척도 줄의 분모는 전체 문제 수
 
   await expect(rows(page)).toHaveCount(1);
   await expect(page.getByText('3문제 중 0개 통과')).toBeVisible();
+});
+
+// Task 6: select가 사라지고 "← 목록" 링크로 바뀐다. 그 링크는 목록에서 넘어올
+// 때 실린 라우터 state(listSearch)를 읽어 돌아간다 — 목록 행 <Link>가 그 state를
+// 싣는(생산자) 쪽과 WorkspaceHeader가 그걸 읽는(소비자) 쪽 중 하나라도 끊기면
+// 똑같이 필터 없는 '/'로 떨어진다. 이 테스트는 그 배선 전체를 한 번에 본다 —
+// "되돌아갈 때 쿼리를 들고 간다"는 약속은 Back/Forward처럼 클릭을 거치지 않는
+// 길이 아니라 이 링크 자체의 동작이라, state를 빼도 유닛이 아니라 이 e2e만이
+// 잡을 수 있다.
+test('필터를 건 뒤 문제를 열고 "← 목록"을 누르면 필터가 그대로다', async ({ page }) => {
+  await page.goto('#/?q=배열');
+  await expect(rows(page)).toHaveCount(1);
+
+  await rows(page).first().click();
+  await expect(page).toHaveURL(/#\/problems\/001-even-sum$/);
+
+  await page.getByRole('link', { name: '← 목록', exact: true }).click();
+
+  await expect(page).toHaveURL(/#\/\?q=[^&]+$/);
+  await expect(rows(page)).toHaveCount(1);
+  await expect(rows(page)).toContainText('짝수만 더하기');
+});
+
+// 문제 URL로 직접 들어오면(주소창 편집·공유 링크·새로고침) 목록을 거치지
+// 않았으므로 넘겨받은 state가 없다 — "← 목록"은 이때 필터 없는 목록으로
+// 가야 한다(스펙 178행).
+test('문제 URL로 직접 들어가 "← 목록"을 누르면 필터 없는 목록으로 간다', async ({ page }) => {
+  await page.goto('#/problems/001-even-sum');
+
+  await page.getByRole('link', { name: '← 목록', exact: true }).click();
+
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(rows(page)).toHaveCount(3);
+});
+
+// select가 사라지면 "지금 어디 있는지"를 보여줄 수단이 select의 선택값 말고
+// 없어진다 — 현재 문제 제목이 상단바에 글자로 남아야 한다(스펙 174행).
+// ProblemMeta.tsx도 같은 제목을 <h1>으로 그리므로, 클래스가 붙은(=WorkspaceHeader만
+// 해당) <header>로 좁혀 본다 — 좁히지 않으면 문제 패널의 <h1>만으로도 이
+// 단언이 거짓으로 통과해 상단바 쪽 구현이 비어 있어도 들키지 않는다.
+test('IDE 상단바에 현재 문제 제목이 글자로 보인다', async ({ page }) => {
+  await page.goto('#/problems/002-string-repeat');
+
+  await expect(chromeHeader(page)).toContainText('문자열 n번 이어붙이기');
+  await expect(chromeHeader(page).getByRole('link', { name: '← 목록', exact: true })).toBeVisible();
 });

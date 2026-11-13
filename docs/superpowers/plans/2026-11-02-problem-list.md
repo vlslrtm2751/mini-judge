@@ -12,7 +12,7 @@
 > Task 5는 사용자 결정으로 5a(URL 쿼리·정렬)와 5b(검색·필터·0건)로 쪼개
 > 실행했다. 이 문서의 Task 5 절은 둘을 합친 원래 형태 그대로 둔다.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** `/`를 문제 목록 홈으로 만들고, 문제별 풀이 상태를 보여준다.
 

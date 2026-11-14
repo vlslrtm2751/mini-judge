@@ -109,18 +109,21 @@ test('제목 열 머리를 누르면 제목 기준으로 바뀌고, 다시 누�
   // 전체 수열을 박아 두면 문제를 하나 추가할 때마다 깨진다. 제목 순서가
   // 확실히 갈리는 두 문제의 **상대 순서**만 본다 — 'ㅁ'(문자열)이 'ㅉ'(짝수)
   // 앞이고, 방향을 뒤집으면 반대가 된다. 정렬이 빠지면 둘 다 깨진다.
-  const indexOf = async (title: string): Promise<number> => {
+  // URL이 바뀌어도 행 재렌더는 한 틱 뒤다. allInnerTexts()는 스냅샷이라
+  // 기다려 주지 않는다 — 빠른 기계에서는 통과하고 CI에서만 깨진다(실제로
+  // 그랬다). expect.poll로 감싸 재시도하게 한다.
+  const gap = async (): Promise<number> => {
     const titles = await page.locator('[class*="cellTitle"]').allInnerTexts();
-    return titles.findIndex((t) => t.includes(title));
+    return titles.findIndex((t) => t.includes('문자열 n번')) - titles.findIndex((t) => t.includes('짝수만 더하기'));
   };
 
   await page.getByRole('button', { name: '제목', exact: true }).click();
   await expect(page).toHaveURL(/#\/\?sort=title$/);
-  expect(await indexOf('문자열 n번')).toBeLessThan(await indexOf('짝수만 더하기'));
+  await expect.poll(gap).toBeLessThan(0);
 
   await page.getByRole('button', { name: '제목, 오름차순 정렬 중', exact: true }).click();
   await expect(page).toHaveURL(/#\/\?sort=title&dir=desc$/);
-  expect(await indexOf('문자열 n번')).toBeGreaterThan(await indexOf('짝수만 더하기'));
+  await expect.poll(gap).toBeGreaterThan(0);
 });
 
 // theme.spec.ts의 "Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이

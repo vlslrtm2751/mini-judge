@@ -5,6 +5,23 @@ import { expect, test } from '@playwright/test';
 // 벗어나 프리뷰 서버의 404로 떨어진다.
 const IDE_001 = '#/problems/001-even-sum';
 
+/** 진척도 줄이 말하는 전체 문제 수. 예전에는 3을 그대로 박아 뒀는데, 문제를
+ *  하나 추가하자 이 파일에서만 단언 10개가 깨졌다 — 문제를 늘리는 일에
+ *  테스트 수선이 매번 따라붙는 구조였다.
+ *
+ *  파일시스템을 읽는 쪽이 더 독립적이지만, 이 스펙은 브라우저 프로젝트에서
+ *  타입체크돼 node 전역이 없다(tsconfig.app.json의 types가 vite/client뿐).
+ *  거기에 node를 더하면 src의 브라우저 코드에도 node 전역이 열려서, 더 나쁜
+ *  거래다. 대신 화면이 스스로 말하는 수를 읽고, 그 수와 행 수가 **서로
+ *  맞는지**를 본다 — 둘은 같은 metas에서 나오지만 갈라진 적이 실제로 있다
+ *  (진척도가 필터 결과를 세던 리뷰 지적). 그 불일치를 이 단언이 잡는다. */
+async function totalFromProgress(page: import('@playwright/test').Page): Promise<number> {
+  const text = await page.locator('[class*="progress"]').first().innerText();
+  const match = /(\d+)문제 중/.exec(text);
+  if (!match) throw new Error(`진척도 줄을 읽지 못했다: ${JSON.stringify(text)}`);
+  return Number(match[1]);
+}
+
 /** 목록의 행. 행 전체가 링크이고, 유도된 상태를 data-status로 드러낸다. */
 const rows = (page: import('@playwright/test').Page) => page.locator('a[data-status]');
 
@@ -17,10 +34,10 @@ const scroller = (page: import('@playwright/test').Page) => page.locator('[class
  *  좁혀야 둘을 구분할 수 있다. */
 const chromeHeader = (page: import('@playwright/test').Page) => page.locator('header[class]');
 
-test('/를 열면 문제 세 개가 행으로 보인다', async ({ page }) => {
+test('/를 열면 저장소의 모든 문제가 행으로 보인다', async ({ page }) => {
   await page.goto('#/');
 
-  await expect(rows(page)).toHaveCount(3);
+  await expect(rows(page)).toHaveCount(await totalFromProgress(page));
   await expect(rows(page).nth(0)).toContainText('짝수만 더하기');
   await expect(rows(page).nth(1)).toContainText('문자열 n번 이어붙이기');
   await expect(rows(page).nth(2)).toContainText('중복 제거 후 정렬');
@@ -32,7 +49,7 @@ test('/를 열면 문제 세 개가 행으로 보인다', async ({ page }) => {
 
 test('상단에 진척도 한 줄이 보인다', async ({ page }) => {
   await page.goto('#/');
-  await expect(page.getByText('3문제 중 0개 통과')).toBeVisible();
+  await expect(page.locator('[class*="progress"]').first()).toContainText('0개 통과');
 });
 
 test('행을 클릭하면 그 문제의 작업 화면으로 간다', async ({ page }) => {
@@ -76,7 +93,7 @@ test('제출해서 통과하면 목록의 마크와 진척도가 바뀐다', asy
 
   await page.goto('#/');
 
-  await expect(page.getByText('3문제 중 1개 통과')).toBeVisible();
+  await expect(page.locator('[class*="progress"]').first()).toContainText('1개 통과');
   const passed = rows(page).filter({ has: page.locator('[data-mark="pass"]') });
   await expect(passed).toHaveCount(1);
   await expect(passed).toHaveAttribute('href', /001-even-sum$/);
@@ -89,17 +106,21 @@ test('제출해서 통과하면 목록의 마크와 진척도가 바뀐다', asy
 test('제목 열 머리를 누르면 제목 기준으로 바뀌고, 다시 누르면 방향이 뒤집힌다', async ({ page }) => {
   await page.goto('#/');
 
+  // 전체 수열을 박아 두면 문제를 하나 추가할 때마다 깨진다. 제목 순서가
+  // 확실히 갈리는 두 문제의 **상대 순서**만 본다 — 'ㅁ'(문자열)이 'ㅉ'(짝수)
+  // 앞이고, 방향을 뒤집으면 반대가 된다. 정렬이 빠지면 둘 다 깨진다.
+  const indexOf = async (title: string): Promise<number> => {
+    const titles = await page.locator('[class*="cellTitle"]').allInnerTexts();
+    return titles.findIndex((t) => t.includes(title));
+  };
+
   await page.getByRole('button', { name: '제목', exact: true }).click();
-  await expect(rows(page).nth(0)).toContainText('문자열 n번 이어붙이기');
-  await expect(rows(page).nth(1)).toContainText('중복 제거 후 정렬');
-  await expect(rows(page).nth(2)).toContainText('짝수만 더하기');
   await expect(page).toHaveURL(/#\/\?sort=title$/);
+  expect(await indexOf('문자열 n번')).toBeLessThan(await indexOf('짝수만 더하기'));
 
   await page.getByRole('button', { name: '제목, 오름차순 정렬 중', exact: true }).click();
-  await expect(rows(page).nth(0)).toContainText('짝수만 더하기');
-  await expect(rows(page).nth(1)).toContainText('중복 제거 후 정렬');
-  await expect(rows(page).nth(2)).toContainText('문자열 n번 이어붙이기');
   await expect(page).toHaveURL(/#\/\?sort=title&dir=desc$/);
+  expect(await indexOf('문자열 n번')).toBeGreaterThan(await indexOf('짝수만 더하기'));
 });
 
 // theme.spec.ts의 "Tab으로 순회하는 모든 인터랙티브 요소에 포커스 링이
@@ -154,7 +175,7 @@ test('정렬 쿼리로 직접 들어가면 그 순서로 보인다', async ({ pa
 test('알 수 없는 정렬 쿼리로 들어가면 기본 정렬로 떨어지고 목록이 보인다', async ({ page }) => {
   await page.goto('#/?sort=nope&dir=sideways');
 
-  await expect(rows(page)).toHaveCount(3);
+  await expect(rows(page)).toHaveCount(await totalFromProgress(page));
   await expect(rows(page).nth(0)).toContainText('짝수만 더하기');
   await expect(rows(page).nth(1)).toContainText('문자열 n번 이어붙이기');
   await expect(rows(page).nth(2)).toContainText('중복 제거 후 정렬');
@@ -228,19 +249,23 @@ test('검색 입력은 태그에 없어도 제목에 걸리는 검색어를 찾�
 // 그 전 history 상태로 돌아가는지를 본다.
 test('디바운스가 끝나기 전에 뒤로 가면 검색창과 목록이 함께 그 전 상태로 돌아간다', async ({ page }) => {
   await page.goto('#/');
+  const total = await totalFromProgress(page);
 
   // 첫 검색어 — 디바운스가 끝나길 기다려 URL에 커밋되게 한다(history
   // entry 하나가 쌓인다).
   await page.getByLabel('제목·태그 검색').fill('배열');
   await expect(page).toHaveURL(/#\/\?q=[^&]+$/);
-  await expect(rows(page)).toHaveCount(1);
-  await expect(rows(page)).toContainText('짝수만 더하기');
+  // 개수를 박지 않는다 — 문제가 늘면 태그가 겹칠 수 있다. 걸러졌다는 것과
+  // 기대한 문제가 들어 있다는 것만 본다.
+  await expect.poll(() => rows(page).count()).toBeLessThan(total);
+  await expect(rows(page).filter({ hasText: '짝수만 더하기' })).toHaveCount(1);
 
   // 두 번째 검색어 — 디바운스 커밋을 기다리지 않고 바로 뒤로 간다. 화면은
   // 로컬 qInput으로 이미 바뀌어 있지만 URL에는 아직 안 실린 상태다.
-  await page.getByLabel('제목·태그 검색').fill('문자열');
-  await expect(rows(page)).toHaveCount(1);
-  await expect(rows(page)).toContainText('문자열 n번 이어붙이기');
+  await page.getByLabel('제목·태그 검색').fill('중복');
+  await expect(rows(page).filter({ hasText: '중복 제거 후 정렬' })).toHaveCount(1);
+  // 첫 검색어의 결과는 사라졌어야 한다 — 화면이 로컬 입력에 즉시 반응한다는 뜻.
+  await expect(rows(page).filter({ hasText: '짝수만 더하기' })).toHaveCount(0);
 
   await page.goBack();
 
@@ -249,7 +274,7 @@ test('디바운스가 끝나기 전에 뒤로 가면 검색창과 목록이 함�
   // 한다. effect가 없으면 qInput이 'string 1'에 그대로 남아 입력창·목록이
   // URL과 어긋난다.
   await expect(page).toHaveURL(/#\/$/);
-  await expect(rows(page)).toHaveCount(3);
+  await expect(rows(page)).toHaveCount(await totalFromProgress(page));
   await expect(page.getByLabel('제목·태그 검색')).toHaveValue('');
 });
 
@@ -267,7 +292,7 @@ test('0건이 되는 URL로 직접 들어가면 안내와 초기화 버튼이 �
   await expect(page.locator('[class*="empty"]')).toContainText('조건에 맞는 문제가 없습니다');
   await expect(page.locator('[class*="empty"]')).toBeVisible();
   // 필터를 걸어 0건이 되어도 진척도 줄은 전체 문제 수 기준이다.
-  await expect(page.getByText('3문제 중 0개 통과')).toBeVisible();
+  await expect(page.locator('[class*="progress"]').first()).toContainText('0개 통과');
   // 리뷰 Important 1: 9는 levels에 없는 값이라 일치하는 <option>이 없으면
   // 네이티브 select가 value=""로 떨어져 "전체 난이도"를 보여준다 — 목록은
   // 0건이라고 하는데 컨트롤은 "필터 없음"이라고 말하는 모순. select가
@@ -278,17 +303,24 @@ test('0건이 되는 URL로 직접 들어가면 안내와 초기화 버튼이 �
 
   await page.getByRole('button', { name: '필터 초기화', exact: true }).click();
 
-  await expect(rows(page)).toHaveCount(3);
+  await expect(rows(page)).toHaveCount(await totalFromProgress(page));
   await expect(page).toHaveURL(/#\/$/);
 });
 
 test('필터를 건 상태에서도 진척도 줄의 분모는 전체 문제 수로 남는다', async ({ page }) => {
   await page.goto('#/');
 
+  // 거르기 **전에** 읽어 둔다. 거른 뒤에 읽어서 비교하면 순환이라 분모가
+  // 필터를 따라가도 알아채지 못한다.
+  const total = await totalFromProgress(page);
+  await expect(rows(page)).toHaveCount(total);
+
   await page.getByLabel('난이도 필터').selectOption('1');
 
-  await expect(rows(page)).toHaveCount(1);
-  await expect(page.getByText('3문제 중 0개 통과')).toBeVisible();
+  // 몇 건이 남는지는 문제 구성에 달렸다. 중요한 건 걸러졌다는 것과,
+  // 그래도 분모가 전체 문제 수로 남는다는 것이다(스펙 226행).
+  await expect.poll(() => rows(page).count()).toBeLessThan(total);
+  expect(await totalFromProgress(page)).toBe(total);
 });
 
 // Task 6: select가 사라지고 "← 목록" 링크로 바뀐다. 그 링크는 목록에서 넘어올
@@ -322,7 +354,7 @@ test('문제 URL로 직접 들어가 "← 목록"을 누르면 필터 없는 목
   await page.getByRole('link', { name: '← 목록', exact: true }).click();
 
   await expect(page).toHaveURL(/#\/$/);
-  await expect(rows(page)).toHaveCount(3);
+  await expect(rows(page)).toHaveCount(await totalFromProgress(page));
 });
 
 // select가 사라지면 "지금 어디 있는지"를 보여줄 수단이 select의 선택값 말고
@@ -347,11 +379,11 @@ test('IDE 상단바에 현재 문제 제목이 글자로 보인다', async ({ pa
 test('좁은 화면에서 제목이 잘리지 않고 카드로 쌓인다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('#/');
-  await expect(rows(page)).toHaveCount(3);
+  await expect(rows(page)).toHaveCount(await totalFromProgress(page));
 
   const titleCells = page.locator('a[data-status] [class*="cellTitle"]');
   const count = await titleCells.count();
-  expect(count).toBe(3);
+  expect(count).toBe(await totalFromProgress(page));
   for (let i = 0; i < count; i += 1) {
     const metrics = await titleCells.nth(i).evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
     expect(metrics.scroll, `행 ${i}의 제목이 잘렸다: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(

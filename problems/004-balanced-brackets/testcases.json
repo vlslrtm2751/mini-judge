@@ -1,0 +1,16 @@
+{
+  "params": ["s"],
+  "timeLimitMs": 1000,
+  "compare": "exact",
+  "public": [
+    { "input": ["()"], "expected": true },
+    { "input": ["(()"], "expected": false },
+    { "input": ["()()"], "expected": true }
+  ],
+  "hidden": [
+    { "input": [""], "expected": true, "note": "빈 문자열" },
+    { "input": [")("], "expected": false, "note": "개수는 같지만 순서가 틀렸다" },
+    { "input": ["((()))"], "expected": true, "note": "깊게 중첩" },
+    { "input": ["())("], "expected": false, "note": "중간에 음수로 내려간다" }
+  ]
+}
